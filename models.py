@@ -81,10 +81,10 @@ class Maze:
         # posizionamento di fantasmi e pucgum ai 4 angoli
 
         angoli_ideali: list[tuple[int, int]] = [
-            (0, 0),                  # Angolo alto a sinistra
-            (max_x, 0),              # Angolo alto a destra
-            (0, max_y),              # Angolo basso a sinistra
-            (max_x, max_y)           # Angolo basso a destra
+            (0, 0),
+            (max_x, 0),
+            (0, max_y),
+            (max_x, max_y)
         ]
 
         for angolo_x, angolo_y in angoli_ideali:
