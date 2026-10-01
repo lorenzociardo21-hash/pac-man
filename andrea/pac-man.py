@@ -5,8 +5,10 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import json  # noqa: E402
 import sys  # noqa: E402
 from typing import Any  # noqa: E402
-from window import Window  # noqa: E402
-from highscores import Highscores  # noqa: E402
+from models import Maze  # noqa: E402
+from andrea.window import Window  # noqa: E402
+from andrea.highscores import Highscores  # noqa: E402
+from mazegenerator import MazeGenerator  # noqa: E402
 from pydantic import BaseModel, Field, ValidationError  # noqa: E402
 
 
@@ -65,6 +67,22 @@ def main() -> None:
         print("File non giasone")
         sys.exit(1)
     config = load_config(sys.argv[1])
+
+    try:
+        generatore = MazeGenerator(
+            size=(config.width, config.height),
+            perfect=False,
+            seed=config.seed,
+        )
+        maze = Maze(
+            generatore.maze,
+            config.points_per_pacgum,
+            config.points_per_super_pacgum,
+        )
+    except Exception as e:
+        print(f"gen andata male {e}")
+        sys.exit(1)
+
     highscores = Highscores(config.highscore_filename)
     # highscores.add("Riso", 100)
     # highscores.add("Patate", 200)

@@ -1,4 +1,5 @@
 import pygame
+from models import Maze
 
 
 class Window:
