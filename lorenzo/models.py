@@ -36,6 +36,18 @@ class Cell:
     def is_walkable(self) -> bool:
         return self.opennord or self.openest or self.opensud or self.openwest
 
+    def what_dir_is_walkable(self) -> list[str]:
+        list_direzioni: list[str] = []
+        if self.opennord:
+            list_direzioni.append("up")
+        if self.openest:
+            list_direzioni.append("right")
+        if self.opensud:
+            list_direzioni.append("down")
+        if self.openwest:
+            list_direzioni.append("left")
+        return list_direzioni
+
 
 class Maze:
     def __init__(

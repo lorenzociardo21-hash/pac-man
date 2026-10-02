@@ -18,7 +18,7 @@ class Player():
             self.y += 1
         elif self.direzione == 'left' and cella_corrente.openwest:
             self.x -= 1
-        elif self.direzione == 'right' and cella_corrente.openeast:
+        elif self.direzione == 'right' and cella_corrente.openest:
             self.x += 1
         else:
             return
