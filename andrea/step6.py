@@ -4,7 +4,7 @@ from mazegenerator import MazeGenerator
 
 TILE = 32
 
-griglia = MazeGenerator(size=(20, 21), perfect=False, seed=42).maze
+mappa = MazeGenerator(size=(20, 21), perfect=False, seed=42).maze
 
 pygame.init()
 schermo = pygame.display.set_mode((20 * TILE, 21 * TILE))
@@ -23,7 +23,7 @@ while running:
         if ev.type == pygame.QUIT:
             running = False
     schermo.fill((0, 0, 0))
-    for y, riga in enumerate(griglia):
+    for y, riga in enumerate(mappa):
         for x, numero in enumerate(riga):
             schermo.blit(tiles[numero], (x * TILE, y * TILE))
             if numero != 15:

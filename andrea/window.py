@@ -1,5 +1,5 @@
-import pygame
 
+import pygame
 
 class Window:
     """Apre finestra di gioco e runna il loop"""
