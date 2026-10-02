@@ -38,7 +38,7 @@ from lorenzo.ghost import Ghost
 from lorenzo.models import Maze
 from lorenzo.player import Player
 
-SIZE: tuple[int, int] = (20, 21)
+SIZE: tuple[int, int] = (10, 10)
 SEED: int = 42
 VITE: int = 3
 PUNTI_GUM: int = 10
@@ -111,7 +111,7 @@ def nuovo_gioco(seed: int) -> Gioco:
     generatore = MazeGenerator(size=SIZE, perfect=False, seed=seed)
     maze = Maze(generatore.maze, PUNTI_GUM, PUNTI_BUBBLEGUM)
     player = Player(maze, VITE)
-    ghosts = [Ghost(maze, pos) for pos in maze.ghost_spawns]
+    ghosts = [Ghost(maze, pos, player) for pos in maze.ghost_spawns]
     return Gioco(maze, player, ghosts, Controll(maze, ghosts, player))
 
 

@@ -25,6 +25,10 @@ class Controll():
                 return
             self.player.x = self.maze.player_start[0]
             self.player.y = self.maze.player_start[1]
+            for i, ghost in enumerate(self.ghosts):
+                ghost.x = self.maze.ghost_spawns[i][0]
+                ghost.y = self.maze.ghost_spawns[i][1]
+                ghost.direzione = ""
             return
         if self.maze.total_gums == 0:
             self.you_win = True
