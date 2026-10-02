@@ -6,7 +6,7 @@ class Window:
 
     def __init__(self, width: int, height: int, title: str) -> None:
         pygame.init()
-        self.schermo = pygame.display.set_mode((width, height))
+        self.schermo = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         pygame.display.set_caption(title)
         self.timer = pygame.time.Clock()
         self.running = True

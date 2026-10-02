@@ -7,18 +7,19 @@ from pathlib import Path
 from andrea.window import Window
 
 
-TILE = 32
+TILE = 48
 generatore = MazeGenerator(size=(20, 21), perfect=False, seed=42)
 mappa = generatore.maze
 maze: Maze = Maze(mappa, 10, 20)
 player: Player = Player(maze, 3)
 ghosts = [Ghost(maze, pos, player) for pos in maze.ghost_spawns]
-window: Window = Window(800, 600, "PACCO-MANNO")
+finestra =pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+#window: Window = Window(1980, 1200, "PACCO-MANNO")
 
 #mappa = MazeGenerator(size=(20, 21), perfect=False, seed=42).maze
 
 pygame.init()
-window = pygame.display.set_mode((20 * TILE, 21 * TILE))
+#window = pygame.display.set_mode((20 * TILE, 21 * TILE))
 
 cartella = Path(__file__).parent / "andrea/assets"
 tiles = []
@@ -27,7 +28,7 @@ for n in range(16):
     img = pygame.transform.scale(img, (TILE, TILE))
     tiles.append(img)
 
-lato = 10
+lato = 20
 
 
 timer = pygame.time.Clock()
@@ -52,18 +53,24 @@ while running:
                 player.direzione = "right"
     player.move()
     timer.tick(10)
+    for ghost in ghosts:
+        ghost.move()
+        timer.tick(10)
 
-    window.fill((0, 0, 0))
+    finestra.fill((0, 0, 0))
     for y, riga in enumerate(mappa):
         for x, numero in enumerate(riga):
-            window.blit(tiles[numero], (x * TILE, y * TILE))
+            finestra.blit(tiles[numero], (x * TILE, y * TILE))
             if isinstance(maze.mappa[x, y].item, Gum):
                 centro = (x * TILE + TILE // 2, y * TILE + TILE // 2)
-                pygame.draw.circle(window, (255, 255, 0), centro, 3)
+                pygame.draw.circle(finestra, (255, 255, 0), centro, 3)
             elif isinstance(maze.mappa[x, y].item, Bubblegum):
                 centro = (x * TILE + TILE // 2, y * TILE + TILE // 2)
-                pygame.draw.circle(window, (200, 155, 0), centro, 7)
-            pygame.draw.rect(window, (200, 155, 0), (player.x * TILE+12, player.y * TILE+12, lato, lato))
+                pygame.draw.circle(finestra, (200, 155, 0), centro, 7)
+            pygame.draw.rect(finestra, (200, 155, 0), (player.x * TILE+15, player.y * TILE+15, lato, lato))
+            for ghost in ghosts:
+                pygame.draw.rect(finestra, (1, 155, 0), (ghost.x * TILE+15, ghost.y * TILE+15, lato, lato))
+
 
     pygame.display.flip()
 

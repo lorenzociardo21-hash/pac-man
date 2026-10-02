@@ -61,6 +61,7 @@ class Ghost():
             dir_piu_corta.append(((x, y), distanz))
         coordinate_minime = min(dir_piu_corta,
                                 key=lambda elemento: elemento[1])[0]
+
         self.x, self.y = coordinate_minime
 
     def move(self) -> None:
