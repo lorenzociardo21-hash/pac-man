@@ -1,10 +1,9 @@
+import pygame
+from mazegenerator import MazeGenerator
 from lorenzo.models import Maze, Gum, Bubblegum, Cell
 from lorenzo.player import Player
 from lorenzo.ghost import Ghost
-from mazegenerator import MazeGenerator
-import pygame
 from pathlib import Path
-from andrea.window import Window
 
 
 TILE = 48
@@ -13,7 +12,7 @@ mappa = generatore.maze
 maze: Maze = Maze(mappa, 10, 20)
 player: Player = Player(maze, 3)
 ghosts = [Ghost(maze, pos, player) for pos in maze.ghost_spawns]
-finestra =pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+finestra = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 #window: Window = Window(1980, 1200, "PACCO-MANNO")
 
 #mappa = MazeGenerator(size=(20, 21), perfect=False, seed=42).maze
@@ -52,10 +51,8 @@ while running:
             elif ev.key in (pygame.K_RIGHT, pygame.K_d):
                 player.direzione = "right"
     player.move()
-    timer.tick(10)
     for ghost in ghosts:
         ghost.move()
-        timer.tick(10)
 
     finestra.fill((0, 0, 0))
     for y, riga in enumerate(mappa):
@@ -67,11 +64,13 @@ while running:
             elif isinstance(maze.mappa[x, y].item, Bubblegum):
                 centro = (x * TILE + TILE // 2, y * TILE + TILE // 2)
                 pygame.draw.circle(finestra, (200, 155, 0), centro, 7)
-            pygame.draw.rect(finestra, (200, 155, 0), (player.x * TILE+15, player.y * TILE+15, lato, lato))
-            for ghost in ghosts:
-                pygame.draw.rect(finestra, (1, 155, 0), (ghost.x * TILE+15, ghost.y * TILE+15, lato, lato))
+    pygame.draw.rect(finestra, (200, 155, 0),
+                     (player.x * TILE+15, player.y * TILE + 15, lato, lato))
+    for ghost in ghosts:
+        pygame.draw.rect(finestra, (1, 155, 0),
+                         (ghost.x * TILE+15, ghost.y * TILE + 15, lato, lato))
 
-
+    timer.tick(5)
     pygame.display.flip()
 
 pygame.quit()

@@ -45,7 +45,20 @@ class Ghost():
     def move_id1(self) -> None:
         cella_corrente = self.maze.mappa[(self.x, self.y)]
         list_direzioni: list[str] = cella_corrente.what_dir_is_walkable()
-        dir_piu_corta: list[tuple[tuple[int, int], int]] = []
+
+        dict_dir_contrario: dict[str, str] = {
+            "up": "down",
+            "down": "up",
+            "right": "left",
+            "left": "right",
+            "": "",
+        }
+        dir_contro: str = dict_dir_contrario[self.direzione]
+        if dir_contro in list_direzioni and len(list_direzioni) > 1:
+            list_direzioni.remove(dir_contro)
+
+        dir_piu_corta: list[tuple[tuple[int, int], str, float]] = []
+
         for direzione in list_direzioni:
             x: int = self.x
             y: int = self.y
@@ -57,19 +70,22 @@ class Ghost():
                 x -= 1
             elif direzione == 'right':
                 x += 1
-            distanz: float = sqrt((self.player.x-x)**2+(self.player.y-y)**2)
-            dir_piu_corta.append(((x, y), distanz))
-        coordinate_minime = min(dir_piu_corta,
-                                key=lambda elemento: elemento[1])[0]
 
-        self.x, self.y = coordinate_minime
+            distanz: float = sqrt((self.player.x-x)**2+(self.player.y-y)**2)
+            dir_piu_corta.append(((x, y), direzione, distanz))
+
+        scelta_migliore = min(dir_piu_corta, key=lambda elemento: elemento[2])
+
+        self.x, self.y = scelta_migliore[0]
+        self.direzione = scelta_migliore[1]
 
     def move(self) -> None:
-        if self.id == 0:
-            self.move_id1()
-        elif self.id == 1:
-            self.move_id1()
-        if self.id == 2:
-            self.move_id1()
-        elif self.id == 3:
-            self.move_id1()
+        if self.player.direzione != "":
+            if self.id == 0:
+                self.move_id0()
+            elif self.id == 1:
+                self.move_id1()
+            elif self.id == 2:
+                self.move_id1()
+            elif self.id == 3:
+                self.move_id1()
