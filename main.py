@@ -7,8 +7,8 @@ from pathlib import Path
 
 
 TILE = 48
-generatore = MazeGenerator(size=(20, 21), perfect=False, seed=42)
-mappa = generatore.maze
+generatore: MazeGenerator = MazeGenerator(size=(20, 21), perfect=False, seed=42)
+mappa: list[list[int]] = generatore.maze
 maze: Maze = Maze(mappa, 10, 20)
 player: Player = Player(maze, 3)
 ghosts = [Ghost(maze, pos, player) for pos in maze.ghost_spawns]
