@@ -13,12 +13,12 @@ maze: Maze = Maze(mappa, 10, 20)
 player: Player = Player(maze, 3)
 ghosts = [Ghost(maze, pos, player) for pos in maze.ghost_spawns]
 finestra = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-#window: Window = Window(1980, 1200, "PACCO-MANNO")
+# window: Window = Window(1980, 1200, "PACCO-MANNO")
 
-#mappa = MazeGenerator(size=(20, 21), perfect=False, seed=42).maze
+# mappa = MazeGenerator(size=(20, 21), perfect=False, seed=42).maze
 
 pygame.init()
-#window = pygame.display.set_mode((20 * TILE, 21 * TILE))
+# window = pygame.display.set_mode((20 * TILE, 21 * TILE))
 
 cartella = Path(__file__).parent / "andrea/assets"
 tiles = []
