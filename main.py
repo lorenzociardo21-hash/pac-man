@@ -7,10 +7,9 @@ from lorenzo.controllore import Controll
 from pathlib import Path
 
 
-
 generatore: MazeGenerator = MazeGenerator(size=(20, 21),
                                           perfect=False,
-                                          seed=42)
+                                          seed=41)
 mappa: list[list[int]] = generatore.maze
 maze: Maze = Maze(mappa, 10, 20)
 player: Player = Player(maze, 3)
@@ -83,8 +82,10 @@ ultimo_move_ghost = 0
 last_coord_player = (player.x, player.y)
 last_coord_ghost = [(g.x, g.y) for g in ghosts]
 
+
 def magia(a: float, b: float, t: float) -> float:
-    return a + (b- a) * t
+    return a + (b - a) * t
+
 
 while running:
     for ev in pygame.event.get():
@@ -95,28 +96,25 @@ while running:
             if ev.key == pygame.K_ESCAPE:
                 running = False
             elif ev.key in (pygame.K_UP, pygame.K_w):
-                player.direzione = "up"
+                player.seconda_direzione = "up"
             elif ev.key in (pygame.K_DOWN, pygame.K_s):
-                player.direzione = "down"
+                player.seconda_direzione = "down"
             elif ev.key in (pygame.K_LEFT, pygame.K_a):
-                player.direzione = "left"
+                player.seconda_direzione = "left"
             elif ev.key in (pygame.K_RIGHT, pygame.K_d):
-                player.direzione = "right"
+                player.seconda_direzione = "right"
 
     # keys = pygame.key.get_pressed()
     # if keys[pygame.K_UP]:
     #     player.direzione = "up"
     # if keys[pygame.K_DOWN]:
     #     player.direzione = "down"
-        
+
     # if keys[pygame.K_LEFT]:
     #     player.direzione = "left"
-        
+
     # if keys[pygame.K_RIGHT]:
     #     player.direzione = "right"
-            
-        
-            
 
     """prendo il tempo da pygame con get_ticks in millisecondi.
     se sono passati 200ms dall'ultimo step entro nell' if.
@@ -142,26 +140,25 @@ while running:
 
     if mosso:
         controll.controlliamo()
-        if player.lives < vite_prima:
-            last_coord_player = (player.x, player.y)
-            last_coord_ghost = [(g.x, g.y) for g in ghosts]
+        # if player.lives < vite_prima:
+        #     last_coord_player = (player.x, player.y)
+        #     last_coord_ghost = [(g.x, g.y) for g in ghosts]
         if not controll.show_must_go_on or controll.you_win:
             running = False
 
     progresso_player = min((adesso - ultimo_move) / MOVE_DELAY, 1)
     progresso_ghost = min((adesso - ultimo_move_ghost) / GHOST_DELAY, 1)
 
-
     finestra.fill((0, 0, 0))
-
 
     for y, riga in enumerate(mappa):
         for x, numero in enumerate(riga):
-            finestra.blit(tiles[numero], (margine_x + x * TILE, margine_y + y * TILE))
+            finestra.blit(tiles[numero],
+                          (margine_x + x * TILE, margine_y + y * TILE))
             item = maze.mappa[x, y].item
             centro = (margine_x + x * TILE + TILE // 2,
                       margine_y + y * TILE + TILE // 2)
-            if isinstance(item, Gum):            
+            if isinstance(item, Gum):
                 pygame.draw.circle(finestra, (255, 255, 0), centro, 3)
             elif isinstance(item, Bubblegum):
                 pygame.draw.circle(finestra, (200, 155, 0), centro, 7)
@@ -175,13 +172,19 @@ while running:
     pygame.draw.circle(finestra, (200, 155, 0), centro_player,
                        dimensione_coso // 2)
 
-
     """gx e gy si comportano come px e py di prima. Aggiungendo prima e zip,
     ogni ghost adesso continene anche le info della cella precedente."""
     for ghost, prima in zip(ghosts, last_coord_ghost):
         gx = magia(prima[0], ghost.x, progresso_ghost)
         gy = magia(prima[1], ghost.y, progresso_ghost)
-        pygame.draw.rect(finestra, (1, 155, 0),
+        if ghost.dead:
+            colore = (200, 200, 200)
+        elif ghost.stupid:
+            colore = "red"
+        else:
+            colore = (1, 155, 0)
+
+        pygame.draw.rect(finestra, colore,
                          (int(margine_x + gx * TILE + offset),
                           int(margine_y + gy * TILE + offset),
                           dimensione_coso, dimensione_coso))
