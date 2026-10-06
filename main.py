@@ -1,15 +1,15 @@
 import pygame
 from mazegenerator import MazeGenerator
-from lorenzo.models import Maze, Gum, Bubblegum, Cell
+from lorenzo.models import Maze, Gum, Bubblegum
 from lorenzo.player import Player
 from lorenzo.ghost import Ghost
 from lorenzo.controllore import Controll
 from pathlib import Path
 
 
-generatore: MazeGenerator = MazeGenerator(size=(20, 21),
+generatore: MazeGenerator = MazeGenerator(size=(14, 14),
                                           perfect=False,
-                                          seed=41)
+                                          seed=10)
 mappa: list[list[int]] = generatore.maze
 maze: Maze = Maze(mappa, 10, 20)
 player: Player = Player(maze, 3)
@@ -74,9 +74,9 @@ for n in range(16):
 
 timer = pygame.time.Clock()
 running = True
-MOVE_DELAY = 200
+MOVE_DELAY = 350
 """piu e' alto il delay piu vanno piano"""
-GHOST_DELAY = 300
+GHOST_DELAY = 500
 ultimo_move = 0
 ultimo_move_ghost = 0
 last_coord_player = (player.x, player.y)
@@ -123,31 +123,31 @@ while running:
     progresso calcola la percentuale della distanza percorsa tra la cella
     in cui si trova il coso e la cella in cui sta andando."""
     adesso = pygame.time.get_ticks()
-    mosso = False
-    vite_prima = player.lives
     if adesso - ultimo_move >= MOVE_DELAY:
         ultimo_move = adesso
         last_coord_player = (player.x, player.y)
         player.move()
-        mosso = True
 
     if adesso - ultimo_move_ghost >= GHOST_DELAY:
         ultimo_move_ghost = adesso
         last_coord_ghost = [(g.x, g.y) for g in ghosts]
         for ghost in ghosts:
             ghost.move()
-        mosso = True
-
-    if mosso:
-        controll.controlliamo()
-        # if player.lives < vite_prima:
-        #     last_coord_player = (player.x, player.y)
-        #     last_coord_ghost = [(g.x, g.y) for g in ghosts]
-        if not controll.show_must_go_on or controll.you_win:
-            running = False
 
     progresso_player = min((adesso - ultimo_move) / MOVE_DELAY, 1)
     progresso_ghost = min((adesso - ultimo_move_ghost) / GHOST_DELAY, 1)
+
+    """Ora uso px e py invece di player.x e player.y. px e py possono essere
+    decimali e quindi il movimento appare piu fluido. Lo stesso vale per
+    pos_ghosts. Le calcolo prima di disegnare cosi' controlliamo() usa le
+    stesse posizioni che si vedono a schermo."""
+    px = magia(last_coord_player[0], player.x, progresso_player)
+    py = magia(last_coord_player[1], player.y, progresso_player)
+    pos_ghosts = [(magia(p[0], g.x, progresso_ghost),
+                   magia(p[1], g.y, progresso_ghost))
+                  for g, p in zip(ghosts, last_coord_ghost)]
+
+    controll.controlliamo((px, py), pos_ghosts)
 
     finestra.fill((0, 0, 0))
 
@@ -163,20 +163,14 @@ while running:
             elif isinstance(item, Bubblegum):
                 pygame.draw.circle(finestra, (200, 155, 0), centro, 7)
 
-    """Ora uso px e py invece di player.x e player.y. px e py possono essere
-    decimali e quindi il movimento appare piu fluido."""
-    px = magia(last_coord_player[0], player.x, progresso_player)
-    py = magia(last_coord_player[1], player.y, progresso_player)
     centro_player = (int(margine_x + px * TILE + TILE // 2),
                      int(margine_y + py * TILE + TILE // 2))
     pygame.draw.circle(finestra, (200, 155, 0), centro_player,
                        dimensione_coso // 2)
 
-    """gx e gy si comportano come px e py di prima. Aggiungendo prima e zip,
-    ogni ghost adesso continene anche le info della cella precedente."""
-    for ghost, prima in zip(ghosts, last_coord_ghost):
-        gx = magia(prima[0], ghost.x, progresso_ghost)
-        gy = magia(prima[1], ghost.y, progresso_ghost)
+    """gx e gy arrivano da pos_ghosts, calcolate sopra con la stessa formula
+    di px e py. Ogni ghost ha anche le info della cella precedente."""
+    for ghost, (gx, gy) in zip(ghosts, pos_ghosts):
         if ghost.dead:
             colore = (200, 200, 200)
         elif ghost.stupid:
@@ -200,6 +194,16 @@ while running:
 
     timer.tick(60)
     pygame.display.flip()
+
+    if controll.hit:
+        pygame.time.wait(1000)
+        controll.riparti()
+        last_coord_player = (player.x, player.y)
+        last_coord_ghost = [(g.x, g.y) for g in ghosts]
+        ultimo_move = ultimo_move_ghost = pygame.time.get_ticks()
+
+    if not controll.show_must_go_on or controll.you_win:
+        running = False
 
 pygame.mixer.music.stop()
 pygame.quit()

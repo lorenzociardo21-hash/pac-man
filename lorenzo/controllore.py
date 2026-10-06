@@ -1,7 +1,6 @@
 from lorenzo.models import Maze, Bubblegum
 from lorenzo.ghost import Ghost
 from lorenzo.player import Player
-import pygame
 
 
 class Controll():
@@ -11,6 +10,7 @@ class Controll():
         self.player: Player = player
         self.show_must_go_on: bool = True
         self.you_win: bool = False
+        self.hit: bool = False
 
     def bublegummiamo(self) -> None:
         cord_player: tuple[int, int] = (self.player.x, self.player.y)
@@ -20,37 +20,34 @@ class Controll():
                     ghost.stupid = True
                     ghost.stupid_time = 30
 
-    def controlliamo(self) -> None:
-        self.bublegummiamo()    
-        flag: bool = False
-        for ghost in self.ghosts:
+    def controlliamo(self, pos_player: tuple[float, float],
+                     pos_ghosts: list[tuple[float, float]]) -> None:
+        self.bublegummiamo()
+        for ghost, (gx, gy) in zip(self.ghosts, pos_ghosts):
             if ghost.dead:
                 continue
-            if (ghost.x, ghost.y) == (self.player.x, self.player.y):
+            dist2 = (pos_player[0] - gx) ** 2 + (pos_player[1] - gy) ** 2
+            if dist2 < 0.5 ** 2:
                 if not ghost.stupid:
                     self.player.lives -= 1
-                    flag = True
                     self.player.direzione = ""
-                    break
-                else:
-                    ghost.dead = True
-                    ghost.stupid = False
-                    self.player.points += 200
-
-        if flag:
-            pygame.time.wait(1000)
-            if self.player.lives == 0:
-                self.show_must_go_on = False
-                return
-            self.player.x = self.maze.player_start[0]
-            self.player.y = self.maze.player_start[1]
-            for i, ghost in enumerate(self.ghosts):
-                ghost.x = self.maze.ghost_spawns[i][0]
-                ghost.y = self.maze.ghost_spawns[i][1]
-                ghost.direzione = ""
-                ghost.dead = False
+                    self.hit = True
+                    return
+                ghost.dead = True
                 ghost.stupid = False
-            return
+                self.player.points += 200
 
         if self.maze.total_gums == 0:
             self.you_win = True
+
+    def riparti(self) -> None:
+        self.hit = False
+        if self.player.lives == 0:
+            self.show_must_go_on = False
+            return
+        self.player.x, self.player.y = self.maze.player_start
+        for i, ghost in enumerate(self.ghosts):
+            ghost.x, ghost.y = self.maze.ghost_spawns[i]
+            ghost.direzione = ""
+            ghost.dead = False
+            ghost.stupid = False
