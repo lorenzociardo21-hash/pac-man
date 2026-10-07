@@ -64,6 +64,8 @@ class Maze:
         self.ghost_spawns: list[tuple[int, int]] = []
         self.build_maze(raw_grid)
         self.place_entities(raw_grid)
+        self.max_x: int = 0
+        self.max_y: int = 0
 
     def build_maze(self, raw_grid: list[list[int]]) -> None:
 
@@ -78,6 +80,8 @@ class Maze:
     def place_entities(self, raw_grid: list[list[int]]) -> None:
         max_y: int = len(raw_grid) - 1
         max_x: int = len(raw_grid[0]) - 1
+        self.max_x = max_x
+        self.max_y = max_y
 
         centro_x: int = max_x // 2
         centro_y: int = max_y // 2

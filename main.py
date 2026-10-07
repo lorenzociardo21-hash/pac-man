@@ -13,6 +13,8 @@ generatore: MazeGenerator = MazeGenerator(size=(14, 14),
 mappa: list[list[int]] = generatore.maze
 maze: Maze = Maze(mappa, 10, 20)
 player: Player = Player(maze, 3)
+# per gestire la cheat mode per ora si fa cosi
+player.cheat = True
 ghosts = [Ghost(maze, pos, player) for pos in maze.ghost_spawns]
 controll = Controll(maze, ghosts, player)
 
