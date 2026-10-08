@@ -19,12 +19,27 @@ class Ghost():
         self.direzione: str = ""
         self.maze: Maze = maze
         Ghost.contatore_fantasmi += 1
+        if Ghost.contatore_fantasmi > 3:
+            Ghost.contatore_fantasmi = 0
         self.player: Player = player
         self.passi: int = 0
         self.stupid: bool = False
         self.stupid_time: int = 30
         self.dead: bool = False
         self.home_timer: int = 10
+
+    def _muovi(self, direzione: str) -> None:
+        cella = self.maze.mappa[(self.x, self.y)]
+        if direzione not in cella.what_dir_is_walkable():
+            return
+        if direzione == 'up':
+            self.y -= 1
+        elif direzione == 'down':
+            self.y += 1
+        elif direzione == 'left':
+            self.x -= 1
+        elif direzione == 'right':
+            self.x += 1
 
     def get_bfs_direction(self, target_x: int, target_y: int) -> str:
         if self.x == target_x and self.y == target_y:
@@ -58,7 +73,7 @@ class Ghost():
 
             coda.append((nx, ny, d))
             visitati.add((nx, ny))
-        direzione_scelta: str = self.direzione
+        direzione_scelta: str = ""
         while coda:
             cx, cy, mossa_iniziale = coda.pop(0)
             if cx == target_x and cy == target_y:
@@ -80,6 +95,10 @@ class Ghost():
                 if (nx, ny) not in visitati:
                     visitati.add((nx, ny))
                     coda.append((nx, ny, mossa_iniziale))
+        if direzione_scelta == "":
+            if direzioni_iniziali:
+                return random.choice(direzioni_iniziali)
+            return ""
         return direzione_scelta
 
     def move_id0(self) -> None:
@@ -94,14 +113,7 @@ class Ghost():
             list_direzioni.remove(dir_contro)
 
         self.direzione = random.choice(list_direzioni)
-        if self.direzione == 'up':
-            self.y -= 1
-        elif self.direzione == 'down':
-            self.y += 1
-        elif self.direzione == 'left':
-            self.x -= 1
-        elif self.direzione == 'right':
-            self.x += 1
+        self._muovi(self.direzione)
 
     def move_id1(self) -> None:
         cella_corrente = self.maze.mappa[(self.x, self.y)]
@@ -136,14 +148,7 @@ class Ghost():
         if self.passi % 30 < 20:
             self.direzione = self.get_bfs_direction(self.player.x,
                                                     self.player.y)
-            if self.direzione == 'up':
-                self.y -= 1
-            elif self.direzione == 'down':
-                self.y += 1
-            elif self.direzione == 'left':
-                self.x -= 1
-            elif self.direzione == 'right':
-                self.x += 1
+            self._muovi(self.direzione)
         else:
             self.move_id0()
 
@@ -158,14 +163,7 @@ class Ghost():
     def torniamo_a_casa(self) -> None:
         if self.x != self.start_x or self.y != self.start_y:
             self.direzione = self.get_bfs_direction(self.start_x, self.start_y)
-            if self.direzione == 'up':
-                self.y -= 1
-            elif self.direzione == 'down':
-                self.y += 1
-            elif self.direzione == 'left':
-                self.x -= 1
-            elif self.direzione == 'right':
-                self.x += 1
+            self._muovi(self.direzione)
         else:
             if self.home_timer > 0:
                 self.home_timer -= 1
