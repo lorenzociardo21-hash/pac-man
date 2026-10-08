@@ -41,7 +41,7 @@ class App:
         self.running: bool = True
         self.font = pygame.font.Font(None, 48)
         self.cheat_attiva: bool = False
-        self.partita_salvata: Partita | None = None
+        self.partita_salvata: "Partita | None" = None
 
         # HUD
         self.altezza_hud: int = 40
@@ -96,7 +96,7 @@ class App:
             img_menu_raw, (larghezza_finale, altezza_finale)
         )
 
-        self.scena = Menu(self)
+        self.scena: Scena = Menu(self)
 
 
 class Partita(Scena):
@@ -342,12 +342,16 @@ class Pausa(Scena):
                 self.selezione = (self.selezione - 1) % 2
             elif ev.key in (pygame.K_RETURN, pygame.K_SPACE):
                 if self.selezione == 0:
-                    self.app.scena = self.app.partita_salvata
+                    salvataggio = self.app.partita_salvata
+                    if salvataggio is not None:
+                        self.app.scena = salvataggio
                 elif self.selezione == 1:
                     self.app.partita_salvata = None
                     self.app.scena = Menu(self.app)
-            elif ev.key == pygame.K_ESCAPE:
-                self.app.scena = self.app.partita_salvata
+                elif ev.key == pygame.K_ESCAPE:
+                    salvataggio = self.app.partita_salvata
+                    if salvataggio is not None:
+                        self.app.scena = salvataggio
 
     def disegna(self, finestra: pygame.Surface) -> None:
         if self.app.partita_salvata:

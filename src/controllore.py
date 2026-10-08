@@ -30,7 +30,7 @@ class Controll():
             dist2 = (pos_player[0] - gx) ** 2 + (pos_player[1] - gy) ** 2
 
             if dist2 < 0.35 ** 2:
-                # SE IL FANTASMA E' NORMALE (LETALE)
+
                 if not ghost.stupid:
                     if not self.player.cheat:
                         self.player.lives -= 1
