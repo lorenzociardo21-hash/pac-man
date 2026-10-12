@@ -5,6 +5,8 @@ from src.models import Maze, Gum, Bubblegum
 from src.player import Player
 from src.controllore import Controll
 from src.ghost import Ghost
+from src.highscore import Highscores
+from src.config import Config
 
 
 class Scena:
@@ -32,7 +34,8 @@ class App:
     i setup base e gli asset grafici condivisi.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, config: Config) -> None:
+        self.config = Config = config
         pygame.init()
         l_desktop, a_desktop = pygame.display.get_desktop_sizes()[0]
         self.finestra = pygame.display.set_mode((l_desktop, a_desktop),
@@ -97,17 +100,22 @@ class App:
             img_menu_raw, (larghezza_finale, altezza_finale)
         )
 
+        self.highscores = Highscores(config.highscore_filename)
         self.scena: Scena = Menu(self)
 
 
 class Partita(Scena):
     def __init__(self, app: 'App') -> None:
         super().__init__(app)
+        cfg = self.app.config
+        """cfg.width e cfg.height invece di 14 e 14 nella prossima riga
+        per usare height e width del config"""
         generatore: MazeGenerator = MazeGenerator(size=(14, 14),
-                                                  perfect=False, seed=10)
+                                                  perfect=False, seed=cfg.seed)
         self.mappa: list[list[int]] = generatore.maze
-        self.maze: Maze = Maze(self.mappa, 10, 20)
-        self.player: Player = Player(self.maze, 3)
+        self.maze: Maze = Maze(self.mappa, cfg.points_per_pacgum,
+                               cfg.points_per_super_pacgum)
+        self.player: Player = Player(self.maze, cfg.lives)
 
         if self.app.cheat_attiva:
             self.player.cheat = True
@@ -118,7 +126,8 @@ class Partita(Scena):
             Ghost(self.maze, pos, self.player)
             for pos in self.maze.ghost_spawns
         ]
-        self.controll = Controll(self.maze, self.ghosts, self.player)
+        self.controll = Controll(self.maze, self.ghosts, self.player,
+                        		self.app.config.points_per_ghost)
 
         self.MOVE_DELAY = 350
         self.GHOST_DELAY = 500
@@ -201,7 +210,7 @@ class Partita(Scena):
             self.ultimo_move_ghost = tick
 
         if not self.controll.show_must_go_on or self.controll.you_win:
-            self.app.scena = Menu(self.app)
+            self.app.scena = InserisciNome(self.app, self.player.points)
 
     def disegna(self, finestra: pygame.Surface) -> None:
         finestra.fill((0, 0, 0))
@@ -298,9 +307,9 @@ class Menu(Scena):
                 if self.selezione == 0:
                     self.app.scena = Partita(self.app)
                 elif self.selezione == 1:
-                    print("TODO: Aprire Highscores")
+                    self.app.scena = DisplayPunteggi(self.app)
                 elif self.selezione == 2:
-                    print("TODO: Aprire Istruzioni")
+                    self.app.scena = Istruzioni(self.app)
                 elif self.selezione == 3:
                     self.app.cheat_attiva = not self.app.cheat_attiva
                 elif self.selezione == 4:
@@ -349,10 +358,10 @@ class Pausa(Scena):
                 elif self.selezione == 1:
                     self.app.partita_salvata = None
                     self.app.scena = Menu(self.app)
-                elif ev.key == pygame.K_ESCAPE:
-                    salvataggio = self.app.partita_salvata
-                    if salvataggio is not None:
-                        self.app.scena = salvataggio
+            elif ev.key == pygame.K_ESCAPE:
+                salvataggio = self.app.partita_salvata
+                if salvataggio is not None:
+                    self.app.scena = salvataggio
 
     def disegna(self, finestra: pygame.Surface) -> None:
         if self.app.partita_salvata:
@@ -368,3 +377,99 @@ class Pausa(Scena):
             rect = testo.get_rect(center=(
                 finestra.get_width()//2, 300 + (80 * i)))
             finestra.blit(testo, rect)
+
+
+class InserisciNome(Scena):
+
+    def __init__(self, app: 'App', punti: int) -> None:
+        super().__init__(app)
+        self.punti = punti
+        self.nome = ""
+
+    def eventi(self, ev: pygame.event.Event) -> None:
+        if ev.type != pygame.KEYDOWN:
+            return
+        if ev.key == pygame.K_RETURN:
+            """chiamo funzione .add()"""
+            self.app.highscores.add(self.nome, self.punti)
+            self.app.scena = Menu(self.app)
+        elif ev.key == pygame.K_BACKSPACE:
+            self.nome = self.nome[:-1]
+        elif len(self.nome) < 10 and ev.unicode.isascii() \
+                and (ev.unicode.isalnum() or ev.unicode == " "):
+            self.nome += ev.unicode
+
+    def disegna(self, finestra: pygame.Surface) -> None:
+        finestra.fill((0, 0, 0))
+        righe = [f"SCORE: {self.punti}", "ENTER YOUR NAME:",
+                 self.nome + "_"]
+        for i, r in enumerate(righe):
+            t = self.app.font.render(r, True, (255, 255, 0))
+            finestra.blit(t, t.get_rect(
+                center=(finestra.get_width() // 2, 300 + 80 * i)))
+
+
+class DisplayPunteggi(Scena):
+
+    def eventi(self, ev: pygame.event.Event) -> None:
+        if ev.type == pygame.KEYDOWN and ev.key in (
+                pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_SPACE):
+            self.app.scena = Menu(self.app)
+
+    def disegna(self, finestra: pygame.Surface) -> None:
+        finestra.fill((0, 0, 0))
+        centro = finestra.get_width() // 2
+        titolo = self.app.font.render("HIGHSCORES", True, (255, 255, 0))
+        finestra.blit(titolo, titolo.get_rect(center=(centro, 100)))
+
+        top = self.app.highscores.get_top()
+        if not top:
+            t = self.app.font.render("No scores yet", True, (255, 255, 255))
+            finestra.blit(t, t.get_rect(center=(centro, 250)))
+        for i, (nome, punti) in enumerate(top):
+            t = self.app.font.render(
+                f"{i + 1}. {nome} - {punti}", True, (255, 255, 255))
+            finestra.blit(t, t.get_rect(center=(centro, 200 + 60 * i)))
+
+
+class Istruzioni(Scena):
+
+    def __init__(self, app: 'App') -> None:
+        super().__init__(app)
+        self.righe = [
+            "Istruzioni",
+            "",
+            "Muoversi",
+            "Tasti freccia o WASD: muoversi",
+            "ESC: pausa",
+            "",
+            "",
+            "Mangia gum",
+            "Mangia bubblegum",
+            "Ghost tolgono una vita",
+            "3 vite",
+            "",
+            "ESC per Menu principale",
+        ]
+
+    def eventi(self, ev: pygame.event.Event) -> None:
+        if ev.type == pygame.KEYDOWN and ev.key in (
+                pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_SPACE):
+            self.app.scena = Menu(self.app)
+
+    def disegna(self, finestra: pygame.Surface) -> None:
+        finestra.fill((0, 0, 0))
+        larg, alt = finestra.get_size()
+
+        # white square in the middle of the screen
+        lato = 800
+        quadrato = pygame.Rect(0, 0, lato, lato)
+        quadrato.center = (larg // 2, alt // 2)
+        pygame.draw.rect(finestra, (255, 255, 255), quadrato,
+                         border_radius=20)
+
+        # black text on top of it
+        for i, riga in enumerate(self.righe):
+            t = self.app.font.render(riga, True, (0, 0, 0))
+            finestra.blit(t, t.get_rect(
+                center=(larg // 2, quadrato.top + 60 + 50 * i)))

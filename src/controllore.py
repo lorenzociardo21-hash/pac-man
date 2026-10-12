@@ -4,9 +4,10 @@ from src.player import Player
 
 
 class Controll():
-    def __init__(self, maze: Maze, ghosts: list[Ghost], player: Player):
+    def __init__(self, maze: Maze, ghosts: list[Ghost], player: Player, points_per_ghost: int):
         self.maze: Maze = maze
         self.ghosts: list[Ghost] = ghosts
+        self.points_per_ghost: int = points_per_ghost
         self.player: Player = player
         self.show_must_go_on: bool = True
         self.you_win: bool = False
@@ -40,7 +41,7 @@ class Controll():
                 else:
                     ghost.dead = True
                     ghost.stupid = False
-                    self.player.points += 200
+                    self.player.points += self.points_per_ghost
 
         if self.maze.total_gums == 0:
             self.you_win = True
