@@ -49,6 +49,7 @@ class App:
         self.hud_y: int = 20
         self.hud_spazio: int = 60
         cartella = Path(__file__).parent / "assets"
+        cartella_futuristica = Path(__file__).parent / "assets" / "asset futuristici"
 
         # Importiamo tutte le img e i video
         p_punti: str = str(cartella / "punti.png")
@@ -68,7 +69,7 @@ class App:
 
         self.raw_tiles: list[pygame.Surface] = []
         for n in range(16):
-            img = pygame.image.load(str(cartella / f"{n}.png"))
+            img = pygame.image.load(str(cartella_futuristica / f"{n}.png"))
             self.raw_tiles.append(img.convert_alpha())
 
         pygame.mixer.music.load(str(cartella / "musicsZ.mp3"))
