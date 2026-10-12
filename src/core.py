@@ -109,8 +109,9 @@ class Partita(Scena):
         super().__init__(app)
         cfg = self.app.config
         """cfg.width e cfg.height invece di 14 e 14 nella prossima riga
-        per usare height e width del config"""
-        generatore: MazeGenerator = MazeGenerator(size=(14, 14),
+        per usare height e width del config. Meglio lasciare 14 e 14 senno
+        e' un casino"""
+        generatore: MazeGenerator = MazeGenerator(size=(cfg.width, cfg.height),
                                                   perfect=False, seed=cfg.seed)
         self.mappa: list[list[int]] = generatore.maze
         self.maze: Maze = Maze(self.mappa, cfg.points_per_pacgum,
@@ -424,7 +425,7 @@ class DisplayPunteggi(Scena):
 
         top = self.app.highscores.get_top()
         if not top:
-            t = self.app.font.render("No scores yet", True, (255, 255, 255))
+            t = self.app.font.render("Gioca per vedere la classifica", True, (255, 255, 255))
             finestra.blit(t, t.get_rect(center=(centro, 250)))
         for i, (nome, punti) in enumerate(top):
             t = self.app.font.render(
