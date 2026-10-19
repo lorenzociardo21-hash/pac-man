@@ -73,5 +73,5 @@ class Highscores:
         self.inputs.sort(key=lambda i: i.score, reverse=True)
         self.inputs = self.inputs[:10]
 
-    def get_top(self) -> list[tuple[str,int]]:
+    def get_top(self) -> list[tuple[str, int]]:
         return [(i.name, i.score) for i in self.inputs]

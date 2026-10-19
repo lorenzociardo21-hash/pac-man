@@ -1,3 +1,4 @@
+import random
 import pygame
 from pathlib import Path
 from mazegenerator import MazeGenerator
@@ -27,6 +28,7 @@ class Scena:
     def disegna(self, finestra: pygame.Surface) -> None:
         pass
 
+
 class App:
     """
     Motore principale. Gestisce il while running,
@@ -45,6 +47,18 @@ class App:
         self.cheat_attiva: bool = False
         self.partita_salvata: "Partita | None" = None
         self.tempo_menu: int = 0
+        self.change_level: bool = False
+
+        self.livello_corrente: int = 0
+        self.livelli: list[dict[str, int]] = [
+            {"seed": config.seed, "move_delay": 350, "ghost_delay": 500}
+        ]
+        for i in range(1, 10):
+            self.livelli.append({
+                "seed": random.randint(1, 1000000),
+                "move_delay": max(150, 350 - (i * 20)),
+                "ghost_delay": max(220, 500 - (i * 30))
+            })
 
         # HUD
         self.altezza_hud: int = 40
@@ -52,7 +66,6 @@ class App:
         self.hud_y: int = 20
         self.hud_spazio: int = 60
         cartella = Path(__file__).parent / "assets"
-        cartella_futuristica = Path(__file__).parent / "assets" / "asset futuristici"
 
         # Importiamo tutte le img e i video
         p_punti: str = str(cartella / "punti.png")
@@ -115,20 +128,45 @@ class App:
         self.highscores = Highscores(config.highscore_filename)
         self.scena: Scena = Menu(self)
 
+        raw_lore: list[pygame.Surface] = []
+        for n in range(3):
+            img_path = str(cartella / f"lore_{n}.png")
+            img = pygame.image.load(img_path).convert_alpha()
+            raw_lore.append(img)
+
+        # Dizionario con le liste di frame per ciascuna direzione
+        self.pacman_sprites: dict[str, list[pygame.Surface]] = {
+            "left": raw_lore,
+            "right": [
+                pygame.transform.flip(img, True, False) for img in raw_lore],
+            "up": [pygame.transform.rotate(img, 270) for img in raw_lore],
+            "down": [pygame.transform.rotate(img, 90) for img in raw_lore],
+            "": raw_lore
+        }
+
 
 class Partita(Scena):
-    def __init__(self, app: 'App') -> None:
+
+    def __init__(self, app: 'App', punti_iniziali: int = 0,
+                 vite_iniziali: int | None = None) -> None:
         super().__init__(app)
         cfg = self.app.config
-        """cfg.width e cfg.height invece di 14 e 14 nella prossima riga
-        per usare height e width del config. Meglio lasciare 14 e 14 senno
-        e' un casino"""
+        dati_livello = self.app.livelli[self.app.livello_corrente]
+        seed_livello = dati_livello["seed"]
+
         generatore: MazeGenerator = MazeGenerator(size=(cfg.width, cfg.height),
-                                                  perfect=False, seed=cfg.seed)
+                                                  perfect=False,
+                                                  seed=seed_livello)
         self.mappa: list[list[int]] = generatore.maze
         self.maze: Maze = Maze(self.mappa, cfg.points_per_pacgum,
                                cfg.points_per_super_pacgum)
-        self.player: Player = Player(self.maze, cfg.lives)
+
+        # NOTA: Se vite_iniziali è passato (dai livelli successivi) usa quello,
+        # altrimenti cfg.lives
+        vite_effettive = (
+            vite_iniziali if vite_iniziali is not None else cfg.lives)
+        self.player: Player = Player(self.maze, vite_effettive)
+        self.player.points = punti_iniziali
 
         if self.app.cheat_attiva:
             self.player.cheat = True
@@ -142,8 +180,8 @@ class Partita(Scena):
         self.controll = Controll(self.maze, self.ghosts, self.player,
                                  self.app.config.points_per_ghost)
 
-        self.MOVE_DELAY = 350
-        self.GHOST_DELAY = 500
+        self.MOVE_DELAY = dati_livello["move_delay"]
+        self.GHOST_DELAY = dati_livello["ghost_delay"]
 
         tick_iniziale = pygame.time.get_ticks()
         self.ultimo_move = tick_iniziale
@@ -152,12 +190,17 @@ class Partita(Scena):
         self.last_coord_player = (self.player.x, self.player.y)
         self.last_coord_ghost = [(g.x, g.y) for g in self.ghosts]
 
+        self.px: float = float(self.player.x)
+        self.py: float = float(self.player.y)
+        self.pos_ghosts: list[tuple[float, float]] = [
+            (float(g.x), float(g.y)) for g in self.ghosts
+        ]
         larghezza_schermo, altezza_schermo = self.app.finestra.get_size()
-        self.TILE = min(larghezza_schermo // 20, altezza_schermo // 21)
+        self.TILE = min(larghezza_schermo // 15, altezza_schermo // 16)
         self.margine_x = (
             larghezza_schermo - len(self.mappa[0]) * self.TILE) // 2
         self.margine_y = (altezza_schermo - len(self.mappa) * self.TILE) // 2
-        self.dimensione_coso = 20
+        self.dimensione_coso = 90
         self.offset = (self.TILE - self.dimensione_coso) // 2
 
         self.tiles = []
@@ -169,6 +212,14 @@ class Partita(Scena):
         self.start_time: int = pygame.time.get_ticks()
         self.time_remining: int = self.max_time
         self.pausa_start: int = 0
+
+        self.pacman_frames: dict[str, list[pygame.Surface]] = {}
+        for dir_key, lista_frame in self.app.pacman_sprites.items():
+            self.pacman_frames[dir_key] = [
+                pygame.transform.smoothscale(img, (self.dimensione_coso,
+                                                   self.dimensione_coso))
+                for img in lista_frame
+            ]
 
     def eventi(self, ev: pygame.event.Event) -> None:
         if ev.type == pygame.KEYDOWN:
@@ -184,12 +235,14 @@ class Partita(Scena):
                 self.player.seconda_direzione = "left"
             elif ev.key in (pygame.K_RIGHT, pygame.K_d):
                 self.player.seconda_direzione = "right"
+            elif ev.unicode == "n":
+                if self.app.cheat_attiva:
+                    self.app.change_level = True
 
     def magia(self, a: float, b: float, t: float) -> float:
         return a + (b - a) * t
 
     def aggiorna(self, adesso: int) -> None:
-        # Aggiornamento logica tempo rimanente
         secondi_passati = (adesso - self.start_time) // 1000
         self.time_remining = max(0, self.max_time - secondi_passati)
         if self.time_remining <= 0:
@@ -232,8 +285,21 @@ class Partita(Scena):
             self.ultimo_move = tick
             self.ultimo_move_ghost = tick
 
-        if not self.controll.show_must_go_on or self.controll.you_win:
+        if not self.controll.show_must_go_on:
             self.app.scena = InserisciNome(self.app, self.player.points)
+            return
+
+        if self.controll.you_win or self.app.change_level:
+            self.app.change_level = False
+            if self.app.livello_corrente >= len(self.app.livelli) - 1:
+                self.app.scena = InserisciNome(self.app, self.player.points)
+            else:
+                self.app.livello_corrente += 1
+                self.app.scena = Partita(
+                    self.app,
+                    punti_iniziali=self.player.points,
+                    vite_iniziali=self.player.lives
+                )
 
     def disegna(self, finestra: pygame.Surface) -> None:
         finestra.fill((0, 0, 0))
@@ -253,8 +319,19 @@ class Partita(Scena):
         centro_player = (
             int(self.margine_x + self.px * self.TILE + self.TILE // 2),
             int(self.margine_y + self.py * self.TILE + self.TILE // 2))
-        pygame.draw.circle(finestra, (200, 155, 0), centro_player,
-                           self.dimensione_coso // 2)
+
+        if self.player.direzione == "":
+            frame_idx = 0
+        else:
+            frame_idx = (
+                pygame.time.get_ticks() // 120) % len(
+                    self.pacman_frames["left"])
+
+        sprite_corrente = self.pacman_frames[self.player.direzione][frame_idx]
+
+        pos_faccia_x = centro_player[0] - self.dimensione_coso // 2
+        pos_faccia_y = centro_player[1] - self.dimensione_coso // 2
+        finestra.blit(sprite_corrente, (pos_faccia_x, pos_faccia_y))
 
         for ghost, (gx, gy) in zip(self.ghosts, self.pos_ghosts):
             if ghost.dead:
@@ -290,6 +367,7 @@ class Partita(Scena):
         x_tempo = self.margine_x
 
         disegna_numero(self.time_remining, x_tempo, y_tempo)
+
 
 class Menu(Scena):
     def __init__(self, app: 'App') -> None:
@@ -394,6 +472,7 @@ class Pausa(Scena):
                     self.riprendi_gioco()
                 elif self.selezione == 1:
                     self.app.partita_salvata = None
+                    self.app.livello_corrente = 0
                     self.app.scena = Menu(self.app)
             elif ev.key == pygame.K_ESCAPE:
                 self.riprendi_gioco()
@@ -422,6 +501,9 @@ class InserisciNome(Scena):
         self.nome = ""
 
     def eventi(self, ev: pygame.event.Event) -> None:
+        if self.app.cheat_attiva:
+            return
+        self.app.livello_corrente = 0
         if ev.type != pygame.KEYDOWN:
             return
         if ev.key == pygame.K_RETURN:
@@ -435,6 +517,9 @@ class InserisciNome(Scena):
             self.nome += ev.unicode
 
     def disegna(self, finestra: pygame.Surface) -> None:
+        if self.app.cheat_attiva:
+            self.app.livello_corrente = 0
+            self.app.scena = Menu(self.app)
         finestra.fill((0, 0, 0))
         righe = [f"SCORE: {self.punti}", "ENTER YOUR NAME:",
                  self.nome + "_"]
