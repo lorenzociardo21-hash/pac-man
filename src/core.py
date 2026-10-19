@@ -27,7 +27,6 @@ class Scena:
     def disegna(self, finestra: pygame.Surface) -> None:
         pass
 
-
 class App:
     """
     Motore principale. Gestisce il while running,
@@ -45,6 +44,7 @@ class App:
         self.font = pygame.font.Font(None, 48)
         self.cheat_attiva: bool = False
         self.partita_salvata: "Partita | None" = None
+        self.tempo_menu: int = 0
 
         # HUD
         self.altezza_hud: int = 40
@@ -70,9 +70,21 @@ class App:
             img_vite_raw, (int(self.altezza_hud * rap_vite), self.altezza_hud)
         )
 
+        # Caricamento delle 10 cifre (0-9)
+        self.img_numeri: list[pygame.Surface] = []
+        for n in range(10):
+            img_num_raw = pygame.image.load(
+                str(cartella / f"tempo_{n}.png")).convert_alpha()
+            rap_num = img_num_raw.get_width() / img_num_raw.get_height()
+            img_num = pygame.transform.smoothscale(
+                img_num_raw, (
+                    int(self.altezza_hud * rap_num), self.altezza_hud)
+            )
+            self.img_numeri.append(img_num)
+
         self.raw_tiles: list[pygame.Surface] = []
         for n in range(16):
-            img = pygame.image.load(str(cartella_futuristica / f"{n}.png"))
+            img = pygame.image.load(str(cartella / f"{n}.png"))
             self.raw_tiles.append(img.convert_alpha())
 
         pygame.mixer.music.load(str(cartella / "musicsZ.mp3"))
@@ -128,7 +140,7 @@ class Partita(Scena):
             for pos in self.maze.ghost_spawns
         ]
         self.controll = Controll(self.maze, self.ghosts, self.player,
-                        		self.app.config.points_per_ghost)
+                                 self.app.config.points_per_ghost)
 
         self.MOVE_DELAY = 350
         self.GHOST_DELAY = 500
@@ -153,12 +165,16 @@ class Partita(Scena):
             img_scalata = pygame.transform.scale(img, (self.TILE, self.TILE))
             self.tiles.append(img_scalata)
 
+        self.max_time: int = cfg.level_max_time
+        self.start_time: int = pygame.time.get_ticks()
+        self.time_remining: int = self.max_time
+        self.pausa_start: int = 0
+
     def eventi(self, ev: pygame.event.Event) -> None:
         if ev.type == pygame.KEYDOWN:
             if ev.key == pygame.K_ESCAPE:
-
+                self.pausa_start = pygame.time.get_ticks()
                 self.app.partita_salvata = self
-
                 self.app.scena = Pausa(self.app)
             elif ev.key in (pygame.K_UP, pygame.K_w):
                 self.player.seconda_direzione = "up"
@@ -173,6 +189,12 @@ class Partita(Scena):
         return a + (b - a) * t
 
     def aggiorna(self, adesso: int) -> None:
+        # Aggiornamento logica tempo rimanente
+        secondi_passati = (adesso - self.start_time) // 1000
+        self.time_remining = max(0, self.max_time - secondi_passati)
+        if self.time_remining <= 0:
+            self.controll.show_must_go_on = False
+
         if adesso - self.ultimo_move >= self.MOVE_DELAY:
             self.ultimo_move = adesso
             self.last_coord_player = (self.player.x, self.player.y)
@@ -248,20 +270,26 @@ class Partita(Scena):
                  int(self.margine_y + gy * self.TILE + self.offset),
                  self.dimensione_coso, self.dimensione_coso))
 
-        finestra.blit(self.app.img_punti, (self.app.hud_x, self.app.hud_y))
-        testo_numero = self.app.font.render(
-            str(self.player.points), True, (255, 255, 255))
-        finestra.blit(testo_numero,
-                      (20 + self.app.img_punti.get_width() + 10, 20))
-        finestra.blit(
-            self.app.img_vite, (
-                self.app.hud_x, self.app.hud_y + self.app.hud_spazio))
-        vite = self.app.font.render(
-            str(self.player.lives), True, (255, 255, 255))
-        finestra.blit(vite, (
-            self.app.hud_x + self.app.img_vite.get_width() + 10,
-            self.app.hud_y + self.app.hud_spazio))
+        def disegna_numero(valore: int, x_pos: int, y_pos: int) -> None:
+            cur_x = x_pos
+            for char_cifra in str(valore):
+                img_cifra = self.app.img_numeri[int(char_cifra)]
+                finestra.blit(img_cifra, (cur_x, y_pos))
+                cur_x += img_cifra.get_width() + 4
 
+        finestra.blit(self.app.img_punti, (self.app.hud_x, self.app.hud_y))
+        pos_x_punti = self.app.hud_x + self.app.img_punti.get_width() + 10
+        disegna_numero(self.player.points, pos_x_punti, self.app.hud_y)
+
+        y_vite = self.app.hud_y + self.app.hud_spazio
+        finestra.blit(self.app.img_vite, (self.app.hud_x, y_vite))
+        pos_x_vite = self.app.hud_x + self.app.img_vite.get_width() + 10
+        disegna_numero(self.player.lives, pos_x_vite, y_vite)
+
+        y_tempo = self.margine_y - self.app.altezza_hud - 10
+        x_tempo = self.margine_x
+
+        disegna_numero(self.time_remining, x_tempo, y_tempo)
 
 class Menu(Scena):
     def __init__(self, app: 'App') -> None:
@@ -297,6 +325,7 @@ class Menu(Scena):
 
         self.y_primo_bottone = self.a_schermo // 2 - 102
         self.distanza_bottoni = 100
+        self.tempo_ingresso = pygame.time.get_ticks()
 
     def eventi(self, ev: pygame.event.Event) -> None:
         if ev.type == pygame.KEYDOWN:
@@ -317,7 +346,7 @@ class Menu(Scena):
                     self.app.running = False
 
     def aggiorna(self, adesso: int) -> None:
-        pass
+        self.app.tempo_menu = adesso - self.tempo_ingresso
 
     def disegna(self, finestra: pygame.Surface) -> None:
         finestra.fill((0, 0, 0))
@@ -345,6 +374,15 @@ class Pausa(Scena):
         self.voci = ["RESUME THE GAME", "RETURN TO MAIN MENU"]
         self.selezione = 0
 
+    def riprendi_gioco(self) -> None:
+        salvataggio = self.app.partita_salvata
+        if salvataggio is not None:
+            delta_pausa = pygame.time.get_ticks() - salvataggio.pausa_start
+            salvataggio.start_time += delta_pausa
+            salvataggio.ultimo_move += delta_pausa
+            salvataggio.ultimo_move_ghost += delta_pausa
+            self.app.scena = salvataggio
+
     def eventi(self, ev: pygame.event.Event) -> None:
         if ev.type == pygame.KEYDOWN:
             if ev.key == pygame.K_DOWN:
@@ -353,16 +391,12 @@ class Pausa(Scena):
                 self.selezione = (self.selezione - 1) % 2
             elif ev.key in (pygame.K_RETURN, pygame.K_SPACE):
                 if self.selezione == 0:
-                    salvataggio = self.app.partita_salvata
-                    if salvataggio is not None:
-                        self.app.scena = salvataggio
+                    self.riprendi_gioco()
                 elif self.selezione == 1:
                     self.app.partita_salvata = None
                     self.app.scena = Menu(self.app)
             elif ev.key == pygame.K_ESCAPE:
-                salvataggio = self.app.partita_salvata
-                if salvataggio is not None:
-                    self.app.scena = salvataggio
+                self.riprendi_gioco()
 
     def disegna(self, finestra: pygame.Surface) -> None:
         if self.app.partita_salvata:
@@ -425,7 +459,8 @@ class DisplayPunteggi(Scena):
 
         top = self.app.highscores.get_top()
         if not top:
-            t = self.app.font.render("Gioca per vedere la classifica", True, (255, 255, 255))
+            t = self.app.font.render("Gioca per vedere la classifica", True,
+                                     (255, 255, 255))
             finestra.blit(t, t.get_rect(center=(centro, 250)))
         for i, (nome, punti) in enumerate(top):
             t = self.app.font.render(
