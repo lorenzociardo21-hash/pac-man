@@ -26,7 +26,7 @@ class Ghost():
         self.stupid: bool = False
         self.stupid_time: int = 30
         self.dead: bool = False
-        self.home_timer: int = 10
+        self.home_timer: int = 0
 
     def _muovi(self, direzione: str) -> None:
         cella = self.maze.mappa[(self.x, self.y)]
