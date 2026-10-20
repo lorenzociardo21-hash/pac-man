@@ -135,7 +135,7 @@ class App:
             raw_lore.append(img)
 
         # Dizionario con le liste di frame per ciascuna direzione
-        self.pacman_sprites: dict[str, list[pygame.Surface]] = {
+        self.pacman_sprites_lore: dict[str, list[pygame.Surface]] = {
             "left": raw_lore,
             "right": [
                 pygame.transform.flip(img, True, False) for img in raw_lore],
@@ -143,6 +143,29 @@ class App:
             "down": [pygame.transform.rotate(img, 90) for img in raw_lore],
             "": raw_lore
         }
+
+        raw_andrea: list[pygame.Surface] = []
+        for n in range(3):
+            img_path = str(cartella / f"andrea_{n}.png")
+            img = pygame.image.load(img_path).convert_alpha()
+            raw_andrea.append(img)
+
+        self.pacman_sprites_andrea: dict[str, list[pygame.Surface]] = {
+            "left": raw_andrea,
+            "right": [
+                pygame.transform.flip(img, True, False) for img in raw_andrea],
+            "up": [pygame.transform.rotate(img, 270) for img in raw_andrea],
+            "down": [pygame.transform.rotate(img, 90) for img in raw_andrea],
+            "": raw_andrea
+        }
+
+        self.raw_ghost: list[pygame.Surface] = []
+        for n in range(4):
+            img_path = str(cartella / f"ghost{n}.png")
+            img = pygame.image.load(img_path).convert_alpha()
+            self.raw_ghost.append(img)
+
+        self.player_img: bool = False
 
 
 class Partita(Scena):
@@ -161,8 +184,6 @@ class Partita(Scena):
         self.maze: Maze = Maze(self.mappa, cfg.points_per_pacgum,
                                cfg.points_per_super_pacgum)
 
-        # NOTA: Se vite_iniziali è passato (dai livelli successivi) usa quello,
-        # altrimenti cfg.lives
         vite_effettive = (
             vite_iniziali if vite_iniziali is not None else cfg.lives)
         self.player: Player = Player(self.maze, vite_effettive)
@@ -200,8 +221,12 @@ class Partita(Scena):
         self.margine_x = (
             larghezza_schermo - len(self.mappa[0]) * self.TILE) // 2
         self.margine_y = (altezza_schermo - len(self.mappa) * self.TILE) // 2
+
         self.dimensione_coso = 90
         self.offset = (self.TILE - self.dimensione_coso) // 2
+
+        self.dimensione_ghost = 150
+        self.offset_ghost = (self.TILE - self.dimensione_ghost) // 2
 
         self.tiles = []
         for img in self.app.raw_tiles:
@@ -213,13 +238,29 @@ class Partita(Scena):
         self.time_remining: int = self.max_time
         self.pausa_start: int = 0
 
-        self.pacman_frames: dict[str, list[pygame.Surface]] = {}
-        for dir_key, lista_frame in self.app.pacman_sprites.items():
-            self.pacman_frames[dir_key] = [
-                pygame.transform.smoothscale(img, (self.dimensione_coso,
-                                                   self.dimensione_coso))
-                for img in lista_frame
-            ]
+        if self.app.player_img:
+            self.pacman_frames: dict[str, list[pygame.Surface]] = {}
+            for dir_key, lista_frame in self.app.pacman_sprites_lore.items():
+                self.pacman_frames[dir_key] = [
+                    pygame.transform.smoothscale(img, (self.dimensione_coso,
+                                                       self.dimensione_coso))
+                    for img in lista_frame
+                ]
+        else:
+            self.pacman_frames: dict[str, list[pygame.Surface]] = {}
+            for dir_key, lista_frame in self.app.pacman_sprites_andrea.items():
+                self.pacman_frames[dir_key] = [
+                    pygame.transform.smoothscale(img, (self.dimensione_coso,
+                                                       self.dimensione_coso))
+                    for img in lista_frame
+                ]
+
+        self.ghost_images: list[pygame.Surface] = [
+            pygame.transform.smoothscale(img, (self.dimensione_ghost,
+                                               self.dimensione_ghost))
+            for img in self.app.raw_ghost
+        ]
+        self.cambiaghost: int = 0
 
     def eventi(self, ev: pygame.event.Event) -> None:
         if ev.type == pygame.KEYDOWN:
@@ -302,7 +343,9 @@ class Partita(Scena):
                 )
 
     def disegna(self, finestra: pygame.Surface) -> None:
-        finestra.fill((0, 0, 0))
+
+        finestra.fill((60, 60, 60))
+
         for y, riga in enumerate(self.mappa):
             for x, numero in enumerate(riga):
                 finestra.blit(self.tiles[numero],
@@ -333,19 +376,37 @@ class Partita(Scena):
         pos_faccia_y = centro_player[1] - self.dimensione_coso // 2
         finestra.blit(sprite_corrente, (pos_faccia_x, pos_faccia_y))
 
-        for ghost, (gx, gy) in zip(self.ghosts, self.pos_ghosts):
-            if ghost.dead:
-                colore = (200, 200, 200)
-            elif getattr(ghost, 'stupid', False):
-                colore = (255, 0, 0)
-            else:
-                colore = (1, 155, 0)
+        for i, (ghost, (gx, gy)) in enumerate(zip(self.ghosts,
+                                                  self.pos_ghosts)):
+            fase = (pygame.time.get_ticks() // 150) % 3
+            if fase == 0:
+                angolo = -15
+            elif fase == 1:
+                angolo = 0
+            elif fase == 2:
+                angolo = 15
 
-            pygame.draw.rect(
-                finestra, colore,
-                (int(self.margine_x + gx * self.TILE + self.offset),
-                 int(self.margine_y + gy * self.TILE + self.offset),
-                 self.dimensione_coso, self.dimensione_coso))
+            img_ghost = self.ghost_images[i % len(self.ghost_images)]
+
+            if ghost.dead:
+                img_da_ruotare = img_ghost.copy()
+                img_da_ruotare.fill((50, 255, 50, 200),
+                                    special_flags=pygame.BLEND_RGBA_MULT)
+            elif getattr(ghost, 'stupid', False):
+                img_da_ruotare = img_ghost.copy()
+                img_da_ruotare.fill((50, 50, 255, 200),
+                                    special_flags=pygame.BLEND_RGBA_MULT)
+            else:
+                img_da_ruotare = img_ghost
+
+            img_ruotata = pygame.transform.rotate(img_da_ruotare, angolo)
+
+            centro_x = int(self.margine_x + gx * self.TILE + self.TILE // 2)
+            centro_y = int(self.margine_y + gy * self.TILE + self.TILE // 2)
+
+            rect_centrato = img_ruotata.get_rect(center=(centro_x, centro_y))
+
+            finestra.blit(img_ruotata, rect_centrato)
 
         def disegna_numero(valore: int, x_pos: int, y_pos: int) -> None:
             cur_x = x_pos
