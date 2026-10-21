@@ -1,7 +1,6 @@
 import sys
 import pygame
 from src.core import App
-from src.core import App
 from src.config import load_config
 
 
@@ -13,28 +12,33 @@ e una che disegna,
 cosi lo rendiamo modulare e non e una merda
 """
 
-if len(sys.argv) != 2:
-    print("Usage: python3 pac-man.py config.json")
-    sys.exit(1)
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python3 pac-man.py config.json")
+        sys.exit(1)
 
-config = load_config(sys.argv[1])
-app = App(config)
-timer = pygame.time.Clock()
+    try:
+        config = load_config(sys.argv[1])
+        app = App(config)
+        timer = pygame.time.Clock()
 
+        while app.running:
 
-while app.running:
+            for ev in pygame.event.get():
+                if ev.type == pygame.QUIT:
+                    app.running = False
+                else:
+                    app.scena.eventi(ev)
 
-    for ev in pygame.event.get():
-        if ev.type == pygame.QUIT:
-            app.running = False
-        else:
-            app.scena.eventi(ev)
+            app.scena.aggiorna(pygame.time.get_ticks())
 
-    app.scena.aggiorna(pygame.time.get_ticks())
+            app.scena.disegna(app.finestra)
 
-    app.scena.disegna(app.finestra)
+            pygame.display.flip()
+            timer.tick(60)
+    # except Exception as e:
+    #     print(f"Errore:  {e}")
+    except KeyboardInterrupt:
+        pass
 
-    pygame.display.flip()
-    timer.tick(60)
-
-pygame.quit()
+    pygame.quit()

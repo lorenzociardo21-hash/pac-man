@@ -1,8 +1,18 @@
+"""Player logic: movement in the maze and eating items."""
+
 from src.models import Maze
 
 
 class Player():
+    """The Pac-Man controlled by the user."""
+
     def __init__(self, maze: Maze, lives: int):
+        """Place the player at the maze start.
+
+        Args:
+            maze: The maze the player moves in.
+            lives: Initial number of lives.
+        """
         self.x: int = maze.player_start[0]
         self.y: int = maze.player_start[1]
         self.maze: Maze = maze
@@ -10,9 +20,14 @@ class Player():
         self.direzione: str = ""
         self.seconda_direzione: str = ""
         self.points: int = 0
-        self.cheat: bool = False
+        self.cheat_player: bool = True
 
     def move(self) -> None:
+        """Eat the item on the current cell, then move by one cell.
+
+        The player turns to the queued direction when that side is open.
+        In cheat mode walls are ignored (only the borders stop it).
+        """
         cella_corrente = self.maze.mappa[(self.x, self.y)]
 
         if cella_corrente.item is not None:
@@ -20,7 +35,7 @@ class Player():
             cella_corrente.item = None
             self.maze.total_gums -= 1
 
-        if not self.cheat:
+        if not self.cheat_player:
             aperte: dict[str, bool] = {
                 "up": cella_corrente.opennord,
                 "down": cella_corrente.opensud,

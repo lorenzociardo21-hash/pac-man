@@ -1,3 +1,5 @@
+"""Game configuration: model, defaults and JSON loading."""
+
 import os
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
@@ -9,12 +11,11 @@ from pydantic import BaseModel, Field, ValidationError  # noqa: E402
 
 
 class Config(BaseModel):
-    """mOdeLL011 base per config"""
+    """Game parameters with their defaults and limits."""
     highscore_filename: str = "highscores.json"
-    level: list[int] = list(range(1, 11))
     """min e max sono random, si possono anche non mettere"""
-    width: int = Field(50, ge=5, le=200)
-    height: int = Field(50, ge=5, le=200)
+    width: int = Field(14, ge=5, le=200)
+    height: int = Field(14, ge=5, le=200)
     """min e max sono random, si possono anche non mettere"""
     lives: int = Field(3, ge=1, le=99)
     pacgum: int = Field(42, ge=1)
@@ -26,7 +27,18 @@ class Config(BaseModel):
 
 
 def load_config(filename: str) -> Config:
-    """Loaddo il file, exit file sbagliato, valori default se key sbagliata"""
+    """Load the JSON config file (lines starting with # are comments).
+
+    The program exits with a message if the file cannot be read or
+    is not a JSON object. Invalid values are dropped and replaced
+    by their defaults.
+
+    Args:
+        filename: Path of the config file.
+
+    Returns:
+        The validated Config.
+    """
 
     try:
         with open(filename, "r", encoding="utf-8") as f:

@@ -1,3 +1,5 @@
+"""Ghost logic: movement behaviours and states."""
+
 from src.models import Maze
 from src.player import Player
 import random
@@ -5,12 +7,20 @@ from math import sqrt
 
 
 class Ghost():
+    """A ghost with one of four behaviours, chosen by its id (0-3)."""
 
     contatore_fantasmi: int = 0
 
     def __init__(self, maze: Maze,
                  start_position: tuple[int, int],
                  player: Player):
+        """Create a ghost at its spawn corner.
+
+        Args:
+            maze: The maze the ghost moves in.
+            start_position: Spawn cell (x, y), also its home.
+            player: The player to chase.
+        """
         self.x: int = start_position[0]
         self.y: int = start_position[1]
         self.start_x: int = start_position[0]
@@ -29,6 +39,7 @@ class Ghost():
         self.home_timer: int = 0
 
     def _muovi(self, direzione: str) -> None:
+        """Move by one cell in the given direction if that side is open."""
         cella = self.maze.mappa[(self.x, self.y)]
         if direzione not in cella.what_dir_is_walkable():
             return
@@ -42,6 +53,17 @@ class Ghost():
             self.x += 1
 
     def get_bfs_direction(self, target_x: int, target_y: int) -> str:
+        """Return the first step of the shortest path to a target (BFS).
+
+        U-turns are avoided when another direction is available.
+
+        Args:
+            target_x: Target column.
+            target_y: Target row.
+
+        Returns:
+            'up', 'down', 'left' or 'right' ('' if already there).
+        """
         if self.x == target_x and self.y == target_y:
             return ""
         cella_corrente = self.maze.mappa[(self.x, self.y)]
@@ -102,6 +124,7 @@ class Ghost():
         return direzione_scelta
 
     def move_id0(self) -> None:
+        """Random movement, avoiding U-turns."""
         cella_corrente = self.maze.mappa[(self.x, self.y)]
         list_direzioni: list[str] = cella_corrente.what_dir_is_walkable()
         dict_dir_contrario: dict[str, str] = {
@@ -116,6 +139,7 @@ class Ghost():
         self._muovi(self.direzione)
 
     def move_id1(self) -> None:
+        """Greedy chase: take the step that gets closest to the player."""
         cella_corrente = self.maze.mappa[(self.x, self.y)]
         list_direzioni: list[str] = cella_corrente.what_dir_is_walkable()
         dict_dir_contrario: dict[str, str] = {
@@ -144,6 +168,7 @@ class Ghost():
         self.direzione = scelta_migliore[1]
 
     def move_id2(self) -> None:
+        """Chase with BFS for 20 steps, then move randomly for 10."""
         self.passi += 1
         if self.passi % 30 < 20:
             self.direzione = self.get_bfs_direction(self.player.x,
@@ -153,6 +178,9 @@ class Ghost():
             self.move_id0()
 
     def move_id3(self) -> None:
+        """Chase like ghost 2 if the player is far (over 8 cells),
+        otherwise move randomly.
+        """
         distanza: float = sqrt((self.player.x - self.x)**2 +
                                (self.player.y - self.y)**2)
         if distanza > 8:
@@ -161,6 +189,7 @@ class Ghost():
             self.move_id0()
 
     def torniamo_a_casa(self) -> None:
+        """Go back home after being eaten, wait there, then revive."""
         if self.x != self.start_x or self.y != self.start_y:
             self.direzione = self.get_bfs_direction(self.start_x, self.start_y)
             self._muovi(self.direzione)
@@ -173,6 +202,10 @@ class Ghost():
                 self.home_timer = 10
 
     def move(self) -> None:
+        """Make one step according to the ghost state and id.
+
+        A dead ghost goes home; an edible ghost moves randomly.
+        """
         if self.dead:
             self.torniamo_a_casa()
             return

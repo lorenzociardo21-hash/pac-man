@@ -1,10 +1,24 @@
+
+"""Game rules: item effects, ghost collisions, win and lose."""
+
 from src.models import Maze, Bubblegum
 from src.ghost import Ghost
 from src.player import Player
 
 
 class Controll():
-    def __init__(self, maze: Maze, ghosts: list[Ghost], player: Player, points_per_ghost: int):
+    """Checks the rules of one level."""
+
+    def __init__(self, maze: Maze, ghosts: list[Ghost], player: Player,
+                 points_per_ghost: int):
+        """Store the game objects to check.
+
+        Args:
+            maze: The level maze.
+            ghosts: The four ghosts.
+            player: The player.
+            points_per_ghost: Score for eating an edible ghost.
+        """
         self.maze: Maze = maze
         self.ghosts: list[Ghost] = ghosts
         self.points_per_ghost: int = points_per_ghost
@@ -13,17 +27,19 @@ class Controll():
         self.you_win: bool = False
         self.hit: bool = False
 
-    def bublegummiamo(self) -> None:
+    def bublegummiamo(self,  player_progress: float) -> None:
         cord_player: tuple[int, int] = (self.player.x, self.player.y)
-        if isinstance(self.maze.mappa[cord_player].item, Bubblegum):
+        if (isinstance(self.maze.mappa[cord_player].item,
+                       Bubblegum) and player_progress > 0.80):
             for ghost in self.ghosts:
                 if not ghost.dead:
                     ghost.stupid = True
                     ghost.stupid_time = 30
 
     def controlliamo(self, pos_player: tuple[float, float],
-                     pos_ghosts: list[tuple[float, float]]) -> None:
-        self.bublegummiamo()
+                     pos_ghosts: list[tuple[float, float]],
+                     player_progress: float) -> None:
+        self.bublegummiamo(player_progress)
 
         for ghost, (gx, gy) in zip(self.ghosts, pos_ghosts):
             if ghost.dead:
@@ -33,7 +49,7 @@ class Controll():
             if dist2 < 0.35 ** 2:
 
                 if not ghost.stupid:
-                    if not self.player.cheat:
+                    if not self.player.cheat_player:
                         self.player.lives -= 1
                         self.player.direzione = ""
                         self.hit = True
@@ -47,6 +63,10 @@ class Controll():
             self.you_win = True
 
     def riparti(self) -> None:
+        """Respawn player and ghosts after a hit.
+
+        If the player has no lives left, the game ends instead.
+        """
         self.hit = False
         self.player.seconda_direzione = ""
         if self.player.lives == 0:

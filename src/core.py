@@ -11,32 +11,42 @@ from src.config import Config
 
 
 class Scena:
-    """
-    Tutte scene ereditano da questa, cosi il while loop
-    non va in crash se manca un metodo.
+    """Base class for every scene (menu, game, pause, ...).
+
+    Each scene has three hooks: events, update and draw. The default
+    hooks do nothing, so the main loop never crashes if one is missing.
     """
 
     def __init__(self, app: 'App') -> None:
         self.app: 'App' = app
 
     def eventi(self, ev: pygame.event.Event) -> None:
+        """Handle one pygame event."""
         pass
 
     def aggiorna(self, adesso: int) -> None:
+        """Update the scene state.
+
+        Args:
+            adesso: Current time in milliseconds (pygame ticks).
+        """
         pass
 
     def disegna(self, finestra: pygame.Surface) -> None:
+        """Draw the scene on the given surface."""
         pass
 
 
 class App:
-    """
-    Motore principale. Gestisce il while running,
-    i setup base e gli asset grafici condivisi.
-    """
+    """Main engine: window setup, shared assets and the current scene."""
 
     def __init__(self, config: Config) -> None:
-        self.config = Config = config
+        """Initialise pygame, build the levels and load the shared assets.
+
+        Args:
+            config: Validated game configuration.
+        """
+        self.config = config
         pygame.init()
         l_desktop, a_desktop = pygame.display.get_desktop_sizes()[0]
         self.finestra = pygame.display.set_mode((l_desktop, a_desktop),
@@ -166,12 +176,24 @@ class App:
             self.raw_ghost.append(img)
 
         self.player_img: bool = False
+        self.img_selezione_lciaro = pygame.image.load(
+            str(cartella / "lciardo.png")).convert_alpha()
+        self.img_selezione_acentron = pygame.image.load(
+            str(cartella / "acentron.png")).convert_alpha()
 
 
 class Partita(Scena):
+    """Game scene: one level with maze, player, ghosts and HUD."""
 
     def __init__(self, app: 'App', punti_iniziali: int = 0,
                  vite_iniziali: int | None = None) -> None:
+        """Generate the maze and set up entities, timers and sprites.
+
+        Args:
+            app: The main application.
+            punti_iniziali: Score carried over from the previous level.
+            vite_iniziali: Lives carried over (config value if None).
+        """
         super().__init__(app)
         cfg = self.app.config
         dati_livello = self.app.livelli[self.app.livello_corrente]
@@ -188,11 +210,6 @@ class Partita(Scena):
             vite_iniziali if vite_iniziali is not None else cfg.lives)
         self.player: Player = Player(self.maze, vite_effettive)
         self.player.points = punti_iniziali
-
-        if self.app.cheat_attiva:
-            self.player.cheat = True
-        else:
-            self.player.cheat = False
 
         self.ghosts = [
             Ghost(self.maze, pos, self.player)
@@ -247,7 +264,7 @@ class Partita(Scena):
                     for img in lista_frame
                 ]
         else:
-            self.pacman_frames: dict[str, list[pygame.Surface]] = {}
+            self.pacman_frames = {}
             for dir_key, lista_frame in self.app.pacman_sprites_andrea.items():
                 self.pacman_frames[dir_key] = [
                     pygame.transform.smoothscale(img, (self.dimensione_coso,
@@ -263,6 +280,7 @@ class Partita(Scena):
         self.cambiaghost: int = 0
 
     def eventi(self, ev: pygame.event.Event) -> None:
+        """Handle movement keys, pause (ESC) and level skip (N)."""
         if ev.type == pygame.KEYDOWN:
             if ev.key == pygame.K_ESCAPE:
                 self.pausa_start = pygame.time.get_ticks()
@@ -276,14 +294,19 @@ class Partita(Scena):
                 self.player.seconda_direzione = "left"
             elif ev.key in (pygame.K_RIGHT, pygame.K_d):
                 self.player.seconda_direzione = "right"
-            elif ev.unicode == "n":
+            elif ev.unicode in ("n", "N"):
                 if self.app.cheat_attiva:
                     self.app.change_level = True
+            elif ev.unicode in ("m", "M"):
+                if self.app.cheat_attiva:
+                    self.player.cheat_player = not self.player.cheat_player
 
     def magia(self, a: float, b: float, t: float) -> float:
+        """Linear interpolation between a and b (t from 0 to 1)."""
         return a + (b - a) * t
 
     def aggiorna(self, adesso: int) -> None:
+        """Move player and ghosts, check collisions, win/lose and the timer."""
         secondi_passati = (adesso - self.start_time) // 1000
         self.time_remining = max(0, self.max_time - secondi_passati)
         if self.time_remining <= 0:
@@ -316,7 +339,8 @@ class Partita(Scena):
             ny = self.magia(p[1], g.y, progresso_ghost)
             self.pos_ghosts.append((nx, ny))
 
-        self.controll.controlliamo((self.px, self.py), self.pos_ghosts)
+        self.controll.controlliamo((self.px, self.py), self.pos_ghosts,
+                                   progresso_player)
         if self.controll.hit:
             pygame.time.wait(1000)
             self.controll.riparti()
@@ -327,13 +351,13 @@ class Partita(Scena):
             self.ultimo_move_ghost = tick
 
         if not self.controll.show_must_go_on:
-            self.app.scena = InserisciNome(self.app, self.player.points)
+            self.app.scena = FineGioco(self.app, self.player.points, False)
             return
 
         if self.controll.you_win or self.app.change_level:
             self.app.change_level = False
             if self.app.livello_corrente >= len(self.app.livelli) - 1:
-                self.app.scena = InserisciNome(self.app, self.player.points)
+                self.app.scena = FineGioco(self.app, self.player.points, True)
             else:
                 self.app.livello_corrente += 1
                 self.app.scena = Partita(
@@ -344,6 +368,7 @@ class Partita(Scena):
 
     def disegna(self, finestra: pygame.Surface) -> None:
 
+        """Draw the maze, items, player, ghosts and the HUD."""
         finestra.fill((60, 60, 60))
 
         for y, riga in enumerate(self.mappa):
@@ -409,6 +434,7 @@ class Partita(Scena):
             finestra.blit(img_ruotata, rect_centrato)
 
         def disegna_numero(valore: int, x_pos: int, y_pos: int) -> None:
+            """Draw a number using the digit images."""
             cur_x = x_pos
             for char_cifra in str(valore):
                 img_cifra = self.app.img_numeri[int(char_cifra)]
@@ -429,9 +455,17 @@ class Partita(Scena):
 
         disegna_numero(self.time_remining, x_tempo, y_tempo)
 
+        livello = self.app.font.render("Livello ", True, "white")
+
+        finestra.blit(livello, livello.get_rect(center=(80, 160)))
+        disegna_numero(self.app.livello_corrente + 1, 140, 140)
+
 
 class Menu(Scena):
+    """Main menu scene."""
+
     def __init__(self, app: 'App') -> None:
+        """Prepare the highlight surfaces and button positions."""
         super().__init__(app)
 
         self.num_opzioni = 5
@@ -467,6 +501,7 @@ class Menu(Scena):
         self.tempo_ingresso = pygame.time.get_ticks()
 
     def eventi(self, ev: pygame.event.Event) -> None:
+        """Move the selection and run the chosen entry."""
         if ev.type == pygame.KEYDOWN:
             if ev.key == pygame.K_DOWN:
                 self.selezione = (self.selezione + 1) % self.num_opzioni
@@ -474,7 +509,7 @@ class Menu(Scena):
                 self.selezione = (self.selezione - 1) % self.num_opzioni
             elif ev.key in (pygame.K_RETURN, pygame.K_SPACE):
                 if self.selezione == 0:
-                    self.app.scena = Partita(self.app)
+                    self.app.scena = SelezionaGiocatore(self.app)
                 elif self.selezione == 1:
                     self.app.scena = DisplayPunteggi(self.app)
                 elif self.selezione == 2:
@@ -485,9 +520,11 @@ class Menu(Scena):
                     self.app.running = False
 
     def aggiorna(self, adesso: int) -> None:
+        """Track the time spent in the menu."""
         self.app.tempo_menu = adesso - self.tempo_ingresso
 
     def disegna(self, finestra: pygame.Surface) -> None:
+        """Draw the menu image and the selection highlights."""
         finestra.fill((0, 0, 0))
 
         img_w = self.app.img_menu.get_width()
@@ -508,12 +545,16 @@ class Menu(Scena):
 
 
 class Pausa(Scena):
+    """Pause menu shown on top of the saved game."""
+
     def __init__(self, app: 'App') -> None:
+        """Create the pause menu entries."""
         super().__init__(app)
         self.voci = ["RESUME THE GAME", "RETURN TO MAIN MENU"]
         self.selezione = 0
 
     def riprendi_gioco(self) -> None:
+        """Resume the saved game, compensating its timers for the pause."""
         salvataggio = self.app.partita_salvata
         if salvataggio is not None:
             delta_pausa = pygame.time.get_ticks() - salvataggio.pausa_start
@@ -523,6 +564,7 @@ class Pausa(Scena):
             self.app.scena = salvataggio
 
     def eventi(self, ev: pygame.event.Event) -> None:
+        """Navigate the pause menu."""
         if ev.type == pygame.KEYDOWN:
             if ev.key == pygame.K_DOWN:
                 self.selezione = (self.selezione + 1) % 2
@@ -539,6 +581,7 @@ class Pausa(Scena):
                 self.riprendi_gioco()
 
     def disegna(self, finestra: pygame.Surface) -> None:
+        """Draw the frozen game, dimmed, with the menu entries."""
         if self.app.partita_salvata:
             self.app.partita_salvata.disegna(finestra)
 
@@ -554,14 +597,74 @@ class Pausa(Scena):
             finestra.blit(testo, rect)
 
 
+class FineGioco(Scena):
+    """Victory or defeat screen shown before the name entry."""
+
+    def __init__(self, app: 'App', punti: int, vittoria: bool) -> None:
+        """Store the result of the game.
+
+        Args:
+            app: The main application.
+            punti: Final score.
+            vittoria: True if the player won, False otherwise.
+        """
+        super().__init__(app)
+        self.punti = punti
+        self.vittoria = vittoria
+        self.tempo_ingresso = pygame.time.get_ticks()
+
+    def eventi(self, ev: pygame.event.Event) -> None:
+
+        """Go to the name entry on ENTER or SPACE."""
+        if pygame.time.get_ticks() - self.tempo_ingresso < 700:
+            return
+        if ev.type == pygame.KEYDOWN and ev.key in (
+                pygame.K_RETURN, pygame.K_SPACE):
+            self.app.scena = InserisciNome(self.app, self.punti)
+
+    def disegna(self, finestra: pygame.Surface) -> None:
+        """Draw the result message, the score and the prompt."""
+        finestra.fill((0, 0, 0))
+        larg, alt = finestra.get_size()
+
+        if self.vittoria:
+            titolo_testo = "HAI VINTO!"
+            colore = (0, 255, 0)
+        else:
+            titolo_testo = "HAI PERSO!"
+            colore = (255, 0, 0)
+
+        font_grande = pygame.font.Font(None, 160)
+        titolo = font_grande.render(titolo_testo, True, colore)
+        finestra.blit(titolo, titolo.get_rect(center=(larg // 2, alt // 3)))
+
+        punteggio = self.app.font.render(
+            f"SCORE: {self.punti}", True, (255, 255, 0))
+        finestra.blit(punteggio, punteggio.get_rect(
+            center=(larg // 2, alt // 2)))
+
+        invito = self.app.font.render(
+            "PREMI INVIO PER CONTINUARE", True, (255, 255, 255))
+        finestra.blit(invito, invito.get_rect(
+            center=(larg // 2, alt // 2 + 120)))
+
+
 class InserisciNome(Scena):
+    """Scene to type the player name and save the score."""
 
     def __init__(self, app: 'App', punti: int) -> None:
+        """Start with an empty name.
+
+        Args:
+            app: The main application.
+            punti: Final score to save.
+        """
         super().__init__(app)
         self.punti = punti
         self.nome = ""
 
     def eventi(self, ev: pygame.event.Event) -> None:
+        """Edit the name (max 10 alphanumeric chars), save it on ENTER."""
         if self.app.cheat_attiva:
             return
         self.app.livello_corrente = 0
@@ -578,6 +681,7 @@ class InserisciNome(Scena):
             self.nome += ev.unicode
 
     def disegna(self, finestra: pygame.Surface) -> None:
+        """Draw the score and the name being typed."""
         if self.app.cheat_attiva:
             self.app.livello_corrente = 0
             self.app.scena = Menu(self.app)
@@ -591,13 +695,16 @@ class InserisciNome(Scena):
 
 
 class DisplayPunteggi(Scena):
+    """Scene showing the top highscores."""
 
     def eventi(self, ev: pygame.event.Event) -> None:
+        """Go back to the menu on ESC, ENTER or SPACE."""
         if ev.type == pygame.KEYDOWN and ev.key in (
                 pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_SPACE):
             self.app.scena = Menu(self.app)
 
     def disegna(self, finestra: pygame.Surface) -> None:
+        """Draw the highscore list."""
         finestra.fill((0, 0, 0))
         centro = finestra.get_width() // 2
         titolo = self.app.font.render("HIGHSCORES", True, (255, 255, 0))
@@ -615,8 +722,10 @@ class DisplayPunteggi(Scena):
 
 
 class Istruzioni(Scena):
+    """Scene showing the game instructions."""
 
     def __init__(self, app: 'App') -> None:
+        """Define the lines of text to show."""
         super().__init__(app)
         self.righe = [
             "Istruzioni",
@@ -631,27 +740,92 @@ class Istruzioni(Scena):
             "Ghost tolgono una vita",
             "3 vite",
             "",
-            "ESC per Menu principale",
+            "cheat mode:",
+            "'n' per livello extra",
+            "'m' per togliere e mettere attraversamento muri",
+            "",
+            "ESC per Menu principale"
         ]
 
     def eventi(self, ev: pygame.event.Event) -> None:
+        """Go back to the menu on ESC, ENTER or SPACE."""
         if ev.type == pygame.KEYDOWN and ev.key in (
                 pygame.K_ESCAPE, pygame.K_RETURN, pygame.K_SPACE):
             self.app.scena = Menu(self.app)
 
     def disegna(self, finestra: pygame.Surface) -> None:
+        """Draw the instructions directly on the background."""
+        finestra.fill((0, 0, 0))  # Sfondo nero
+        larg, alt = finestra.get_size()
+
+        spazio_righe = 40
+        altezza_totale = len(self.righe) * spazio_righe
+        y_iniziale = (alt - altezza_totale) // 2
+
+        for i, riga in enumerate(self.righe):
+            t = self.app.font.render(riga, True, (255, 255, 255))
+            finestra.blit(t, t.get_rect(
+                center=(larg // 2, y_iniziale + spazio_righe * i)))
+
+
+class SelezionaGiocatore(Scena):
+    """Character selection scene before a new game."""
+
+    def __init__(self, app: 'App') -> None:
+        """Start with the first character selected."""
+        super().__init__(app)
+        # True per Lore, False per Andrea
+        self.scelta_lore = True
+
+    def eventi(self, ev: pygame.event.Event) -> None:
+        """Choose with left/right, confirm with ENTER, go back with ESC."""
+        if ev.type == pygame.KEYDOWN:
+            if ev.key in (pygame.K_LEFT, pygame.K_a):
+                self.scelta_lore = True
+            elif ev.key in (pygame.K_RIGHT, pygame.K_d):
+                self.scelta_lore = False
+            elif ev.key in (pygame.K_RETURN, pygame.K_SPACE):
+                self.app.player_img = self.scelta_lore
+                self.app.livello_corrente = 0
+                self.app.scena = Partita(self.app)
+            elif ev.key == pygame.K_ESCAPE:
+                self.app.scena = Menu(self.app)
+
+    def disegna(self, finestra: pygame.Surface) -> None:
+        """Draw the two characters and highlight the selected one."""
         finestra.fill((0, 0, 0))
         larg, alt = finestra.get_size()
 
-        # white square in the middle of the screen
-        lato = 800
-        quadrato = pygame.Rect(0, 0, lato, lato)
-        quadrato.center = (larg // 2, alt // 2)
-        pygame.draw.rect(finestra, (255, 255, 255), quadrato,
+        margine = 100
+        rect_bordo = pygame.Rect(
+            margine, margine, larg - margine * 2, alt - margine * 2)
+        pygame.draw.rect(finestra, (255, 255, 0), rect_bordo, width=8,
                          border_radius=20)
 
-        # black text on top of it
-        for i, riga in enumerate(self.righe):
-            t = self.app.font.render(riga, True, (0, 0, 0))
-            finestra.blit(t, t.get_rect(
-                center=(larg // 2, quadrato.top + 60 + 50 * i)))
+        titolo = self.app.font.render("SELEZIONA GIOCATORE", True, (255, 255,
+                                                                    255))
+        finestra.blit(titolo, titolo.get_rect(center=(larg // 2,
+                                                      margine + 60)))
+
+        centro_y = alt // 2
+        x_lore = larg // 3
+        x_andrea = (larg // 3) * 2
+
+        rect_lciardo = self.app.img_selezione_lciaro.get_rect(
+            center=(x_lore, centro_y - 50))
+        finestra.blit(self.app.img_selezione_lciaro, rect_lciardo)
+
+        rect_acentron = self.app.img_selezione_acentron.get_rect(
+            center=(x_andrea, centro_y - 50))
+        finestra.blit(self.app.img_selezione_acentron, rect_acentron)
+
+        colore_lore = (255, 255, 0) if self.scelta_lore else (100, 100, 100)
+        colore_andrea = (255, 255, 0) if not self.scelta_lore else (100, 100,
+                                                                    100)
+
+        t_lore = self.app.font.render("LCIARDO", True, colore_lore)
+        t_andrea = self.app.font.render("ACENTRON", True, colore_andrea)
+
+        finestra.blit(t_lore, t_lore.get_rect(center=(x_lore, centro_y + 250)))
+        finestra.blit(t_andrea, t_andrea.get_rect(center=(x_andrea,
+                                                          centro_y + 250)))

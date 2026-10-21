@@ -1,21 +1,43 @@
+"""Maze data model: items, cells and the maze built from the grid."""
 
 
 class Gum:
+    """Normal pacgum (small dot)."""
+
     def __init__(self, points: int) -> None:
+        """Create a pacgum.
+
+        Args:
+            points: Score given when eaten.
+        """
         self.points: int = points
         self.is_super: bool = False
 
 
 class Bubblegum:
+    """Super-pacgum (power pellet) that makes ghosts edible."""
+
     def __init__(self, points: int) -> None:
+        """Create a super-pacgum.
+
+        Args:
+            points: Score given when eaten.
+        """
         self.points: int = points
         self.is_super: bool = True
 
 
 class Cell:
+    """One maze cell: its open sides and the item it holds."""
 
     def __init__(self, cell_value: int,
                  item: Gum | Bubblegum | None = None) -> None:
+        """Decode the walls of the cell.
+
+        Args:
+            cell_value: Wall bits (1=north, 2=east, 4=south, 8=west).
+            item: Item placed on the cell, if any.
+        """
         self.item = item
         (
             self.opennord,
@@ -27,6 +49,10 @@ class Cell:
     def _get_open_directions(self, cell_value: int) -> tuple[bool,
                                                              bool, bool, bool]:
 
+        """Return the open sides as (north, east, south, west).
+
+        A bit set to 1 in cell_value means a wall on that side.
+        """
         nord = (cell_value & 1) == 0
         est = (cell_value & 2) == 0
         sud = (cell_value & 4) == 0
@@ -34,9 +60,11 @@ class Cell:
         return nord, est, sud, west
 
     def is_walkable(self) -> bool:
+        """Return True if at least one side is open."""
         return self.opennord or self.openest or self.opensud or self.openwest
 
     def what_dir_is_walkable(self) -> list[str]:
+        """Return the open directions: 'up', 'right', 'down', 'left'."""
         list_direzioni: list[str] = []
         if self.opennord:
             list_direzioni.append("up")
@@ -50,12 +78,21 @@ class Cell:
 
 
 class Maze:
+    """The whole maze: cells, item counter and spawn positions."""
+
     def __init__(
         self,
         raw_grid: list[list[int]],
         gum_points: int,
         bubblegum_points: int
     ) -> None:
+        """Build the maze and place player, ghosts and super-pacgums.
+
+        Args:
+            raw_grid: Grid of wall bits from the maze generator.
+            gum_points: Score of a pacgum.
+            bubblegum_points: Score of a super-pacgum.
+        """
         self.gum_points: int = gum_points
         self.bubblegum_points: int = bubblegum_points
         self.mappa: dict[tuple[int, int], Cell] = {}
@@ -69,6 +106,7 @@ class Maze:
 
     def build_maze(self, raw_grid: list[list[int]]) -> None:
 
+        """Create the cells and put a pacgum on each walkable one."""
         for y, riga in enumerate(raw_grid):
             for x, valore_cella in enumerate(riga):
                 cella: Cell = Cell(valore_cella)
@@ -78,6 +116,7 @@ class Maze:
                 self.mappa[(x, y)] = cella
 
     def place_entities(self, raw_grid: list[list[int]]) -> None:
+        """Set the player start (center) and the ghost corners."""
         max_y: int = len(raw_grid) - 1
         max_x: int = len(raw_grid[0]) - 1
         self.max_x = max_x
@@ -117,6 +156,17 @@ class Maze:
                                   max_x: int,
                                   max_y: int) -> tuple[int, int]:
 
+        """Find the walkable cell nearest to a point with a BFS.
+
+        Args:
+            start_x: Starting column.
+            start_y: Starting row.
+            max_x: Last valid column.
+            max_y: Last valid row.
+
+        Returns:
+            The (x, y) of the closest walkable cell.
+        """
         da_controllare: list[tuple[int, int]] = [(start_x, start_y)]
         visitati: set[tuple[int, int]] = {(start_x, start_y)}
         direzioni: list[tuple[int, int]] = [(0, -1), (1, 0), (0, 1), (-1, 0)]
