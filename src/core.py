@@ -110,9 +110,12 @@ class App:
             img = pygame.image.load(str(cartella / f"{n}.png"))
             self.raw_tiles.append(img.convert_alpha())
 
-        pygame.mixer.music.load(str(cartella / "musicsZ.mp3"))
-        pygame.mixer.music.set_volume(0.5)
-        pygame.mixer.music.play(-1)
+        try:
+            pygame.mixer.music.load(str(cartella / "musicsZ.mp3"))
+            pygame.mixer.music.set_volume(0.5)
+            pygame.mixer.music.play(-1)
+        except Exception:
+            pass
 
         # Importiamo immagine menu
         p_menu: str = str(cartella / "img_menu.png")
