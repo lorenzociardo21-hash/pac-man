@@ -20,7 +20,7 @@ class Player():
         self.direzione: str = ""
         self.seconda_direzione: str = ""
         self.points: int = 0
-        self.cheat_player: bool = True
+        self.cheat_player: bool = False
 
     def move(self) -> None:
         """Eat the item on the current cell, then move by one cell.
