@@ -4,6 +4,7 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 
 
 import sys  # noqa: E402
+from pathlib import Path  # noqa: E402
 import pygame  # noqa: E402
 from src.core import App  # noqa: E402
 from src.config import load_config  # noqa: E402
@@ -18,6 +19,15 @@ cosi lo rendiamo modulare e non e una merda
 """
 
 if __name__ == "__main__":
+    if getattr(sys, "frozen", False):
+        # Packaged build (PyInstaller): work next to the executable, so that
+        # config.json and highscores.json are found whatever the launch
+        # directory is (double click, itch.io app, terminal...), and use
+        # config.json by default when no argument is given.
+        os.chdir(Path(sys.executable).resolve().parent)
+        if len(sys.argv) == 1:
+            sys.argv.append("config.json")
+
     if len(sys.argv) != 2:
         print("Usage: python3 pac-man.py config.json")
         sys.exit(1)
@@ -41,8 +51,8 @@ if __name__ == "__main__":
 
             pygame.display.flip()
             timer.tick(60)
-    # except Exception as e:
-    #     print(f"Errore:  {e}")
+    except Exception as e:
+        print(f"Errore:  {e}")
     except KeyboardInterrupt:
         pass
 
