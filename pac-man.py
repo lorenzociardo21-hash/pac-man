@@ -1,7 +1,12 @@
-import sys
-import pygame
-from src.core import App
-from src.config import load_config
+import os
+
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
+
+
+import sys  # noqa: E402
+import pygame  # noqa: E402
+from src.core import App  # noqa: E402
+from src.config import load_config  # noqa: E402
 
 
 """

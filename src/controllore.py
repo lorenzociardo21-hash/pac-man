@@ -28,6 +28,7 @@ class Controll():
         self.hit: bool = False
 
     def bublegummiamo(self,  player_progress: float) -> None:
+        """Make ghosts edible if the player eats a super-pacgum."""
         cord_player: tuple[int, int] = (self.player.x, self.player.y)
         if (isinstance(self.maze.mappa[cord_player].item,
                        Bubblegum) and player_progress > 0.80):
@@ -39,6 +40,7 @@ class Controll():
     def controlliamo(self, pos_player: tuple[float, float],
                      pos_ghosts: list[tuple[float, float]],
                      player_progress: float) -> None:
+        """Check ghost collisions, edible ghosts and the win condition."""
         self.bublegummiamo(player_progress)
 
         for ghost, (gx, gy) in zip(self.ghosts, pos_ghosts):
